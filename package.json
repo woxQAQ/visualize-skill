@@ -14,9 +14,9 @@
     "visualize": "./dist/cli.js"
   },
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
+    "build": "node scripts/build.ts",
     "typecheck": "pnpm build && tsc --noEmit",
-    "test": "pnpm typecheck && node --test test/*.test.ts",
+    "test": "pnpm typecheck && node --test --test-concurrency=1 test/*.test.ts",
     "example": "pnpm build && node dist/cli.js examples/self-explanation.ts -o output/self-explanation.html",
     "example:single": "pnpm build && node dist/cli.js examples/single.ts -o output/architecture.html",
     "prepack": "pnpm typecheck"
@@ -25,11 +25,7 @@
     "node": ">=22.18"
   },
   "packageManager": "pnpm@11.18.0",
-  "dependencies": {
-    "mdast-util-from-markdown": "^2.0.3"
-  },
   "devDependencies": {
-    "@types/mdast": "^4.0.4",
     "@types/node": "^22.20.1",
     "typescript": "^7.0.2"
   },

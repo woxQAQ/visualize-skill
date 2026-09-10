@@ -1,6 +1,6 @@
 import type { Call, SemanticDocument, Step } from './model.js';
 import type { Document } from './sdk.js';
-import { context, stylesheet } from './design.js';
+import { context } from './design.js';
 import { plainText } from './markdown.js';
 import { layoutArchitecture } from './layout/architecture.js';
 import { layoutSequence } from './layout/sequence.js';
@@ -10,52 +10,51 @@ import { fail } from './diagnostics.js';
 import { escape } from './markup.js';
 import { renderMarkdown } from './render-markdown.js';
 import { renderSvg } from './render-svg.js';
-import { interactionScript } from './interactions.js';
+import { interactionScript, renderTemplate, stylesheet } from './templates.js';
 
 function entityNotes(semantic: SemanticDocument) {
   const roles = new Map(semantic.roles.map(role => [role.id, role.label]));
   const entities = new Map(semantic.entities.map(entity => [entity.id, entity]));
   const charts = semantic.blocks.filter(block => block.kind === 'diagram').map(block => block.content);
-  const link = (id: string) => `<a href="#details-${id}" data-entity-detail="details-${id}">${escape(entities.get(id)!.label)}</a>`;
+  const link = (id: string, chart: string) => `<a href="#entity-${chart}-${id}" data-locate-node="entity-${chart}-${id}" title="在当前图中定位此节点">${escape(entities.get(id)!.label)}</a>`;
   const calls = (steps: readonly Step[]): Call[] => steps.flatMap(step => step.kind === 'alternative'
     ? step.branches.flatMap(branch => calls(branch.steps)) : step.kind === 'call' ? [step] : []);
   const notes = semantic.entities.map(entity => {
+    const locations: string[] = [];
     const appearances = charts.flatMap(chart => {
       const node = (chart.kind === 'architecture' ? chart.nodes : chart.participants).find(node => node.entity === entity.id);
       if (!node) return [];
+      const target = `entity-${chart.id}-${entity.id}`;
+      locations.push(`<li data-location-chart="${chart.id}"><a href="#${target}" data-locate-node="${target}">在「${escape(chart.title)}」中定位此节点</a></li>`);
       const partitionId = chart.kind === 'architecture' ? chart.nodes.find(item => item.entity === entity.id)?.partition : undefined;
       const partition = chart.kind === 'architecture' ? chart.partitions.find(item => item.id === partitionId) : undefined;
       const related = (chart.kind === 'architecture' ? chart.relations : calls(chart.steps))
         .filter(relation => relation.from === entity.id || relation.to === entity.id);
-      return [`
-        <section class="entity-context">
-          <h3><a href="#diagram-${chart.id}">${escape(chart.title)}</a></h3>
-          <dl class="entity-facts">
-            <div><dt>角色</dt><dd>${escape(roles.get(node.role))}</dd></div>
-            ${partition ? `<div><dt>所属分区</dt><dd>${escape(partition.label)}</dd></div>` : ''}
-          </dl>
-          ${related.length ? `<table class="entity-relations"><thead><tr><th>方向</th><th>关联节点</th><th>关系</th></tr></thead><tbody>${related.map(relation => {
-            const outgoing = relation.from === entity.id;
-            const self = relation.from === relation.to;
-            const direction = self ? '内部' : outgoing ? '发出' : '接收';
-            return `<tr><td>${direction}</td><td>${link(outgoing ? relation.to : relation.from)}</td><td>${escape(relation.label)}</td></tr>`;
-          }).join('')}</tbody></table>` : ''}
-        </section>
-      `];
+      const rows = related.map(relation => {
+        const outgoing = relation.from === entity.id;
+        const self = relation.from === relation.to;
+        const direction = self ? '内部' : outgoing ? '发出' : '接收';
+        return `<tr><td>${direction}</td><td>${self ? escape(entity.label) : link(outgoing ? relation.to : relation.from, chart.id)}</td><td>${escape(relation.label)}</td></tr>`;
+      }).join('');
+      return [renderTemplate('entity-context', {
+        chartId: chart.id,
+        title: chart.title,
+        role: roles.get(node.role)!,
+        partition: partition ? `<div><dt>所属分区</dt><dd>${escape(partition.label)}</dd></div>` : '',
+        relations: rows ? renderTemplate('entity-relations', { rows }) : '',
+      })];
     });
-    return `
-      <details>
-        <summary>${escape(entity.label)}</summary>
-        <article id="details-${entity.id}" tabindex="-1">
-          <h2 id="detail-title-${entity.id}">${escape(entity.label)}</h2>
-          <dl class="entity-facts"><div><dt>标识</dt><dd><code>${entity.id}</code></dd></div></dl>
-          ${entity.tags.length ? `<h3>标签</h3><ul class="entity-tags">${entity.tags.map(tag => `<li data-tag="${tag.id}">${escape(tag.label)}</li>`).join('')}</ul>` : ''}
-          ${appearances.join('')}
-        </article>
-      </details>
-    `;
+    return renderTemplate('entity', {
+      id: entity.id,
+      label: entity.label,
+      tags: entity.tags.length ? renderTemplate('entity-tags', {
+        items: entity.tags.map(tag => `<li data-tag="${tag.id}">${escape(tag.label)}</li>`).join(''),
+      }) : '',
+      appearances: appearances.join(''),
+      locations: locations.length ? renderTemplate('entity-locations', { items: locations.join('') }) : '',
+    });
   }).join('');
-  return `<section class="entity-notes"><h2>节点资料</h2>${notes}</section>`;
+  return renderTemplate('entity-notes', { entities: notes });
 }
 
 export function compile(document: Document) {
@@ -88,37 +87,21 @@ export function render(document: Document) {
       const color = ctx.colors.get(role.id)!;
       return `<span><i aria-hidden="true" style="--role-color:${color.ink};--role-fill:${color.fill}"></i>${escape(role.label)}</span>`;
     }).join('');
-    return `
-      <figure id="diagram-${chart.id}">
-        <figcaption>${escape(chart.title)}</figcaption>
-        <div class="legend" aria-label="角色图例">${legend}</div>
-        <div class="diagram-scroll" tabindex="0" role="region" aria-label="${escape(chart.title)}，宽图可横向滚动">
-          ${renderSvg(scenes[sceneIndex++], chart, ctx)}
-        </div>
-      </figure>
-    `;
+    return renderTemplate('figure', {
+      id: chart.id,
+      title: chart.title,
+      legend,
+      svg: renderSvg(scenes[sceneIndex++], chart, ctx),
+    });
   }).join('\n');
 
   const hasEntities = semantic.entities.length > 0;
-  return `<!doctype html>
-<html lang="zh-CN">
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width,initial-scale=1">
-    <meta name="generator" content="visualize-semantic 0.1.0">
-    <title>${escape(title)}</title>
-    <style>${stylesheet}</style>
-  </head>
-  <body>
-    <main${single ? ' class="single"' : ''}>${content}${hasEntities ? entityNotes(semantic) : ''}</main>
-    ${hasEntities ? `
-      <dialog id="node-details" class="detail-dialog">
-        <form method="dialog"><button type="submit" aria-label="关闭节点详情">关闭</button></form>
-        <div data-detail-content></div>
-      </dialog>
-      <script data-visualize-interaction>${interactionScript}</script>
-    ` : ''}
-  </body>
-</html>
-`;
+  return renderTemplate('document', {
+    title,
+    stylesheet,
+    mainAttributes: single ? ' class="single"' : '',
+    content,
+    notes: hasEntities ? entityNotes(semantic) : '',
+    dialog: hasEntities ? renderTemplate('dialog', { script: interactionScript }) : '',
+  });
 }

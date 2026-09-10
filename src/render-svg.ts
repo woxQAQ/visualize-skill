@@ -29,14 +29,17 @@ function frames(scene: Scene) {
 function nodeMarkup(node: NodeLayout, chart: Chart, ctx: LayoutContext) {
   const entity = ctx.entities.get(node.id)!;
   const color = ctx.colors.get(node.role)!;
+  const textX = node.x + node.width / 2;
+  const textHeight = node.title.height + (node.detail ? node.detail.height + 6 : 0);
+  const textY = node.y + (node.height - textHeight) / 2;
   return `
     <g id="entity-${chart.id}-${node.id}" data-entity="${node.id}" data-role="${node.role}">
-      <a class="node-link" href="#details-${node.id}" data-entity-detail="details-${node.id}"
+      <a class="node-link" text-anchor="middle" href="#details-${node.id}" data-entity-detail="details-${node.id}" data-chart="${chart.id}"
         aria-label="${escape(entity.label)}，查看详情" tabindex="0" style="--node-color:${color.ink};--node-hover-fill:${color.fill}">
         <rect class="node-surface" x="${node.x}" y="${node.y}" width="${node.width}" height="${node.height}"
           rx="4" fill="${color.fill}" stroke="${color.ink}"/>
-        ${textBlock(node.title, node.x + 16, node.y + 12, { weight: 600 })}
-        ${node.detail ? textBlock(node.detail, node.x + 16, node.y + 12 + node.title.height + 6, { fill: theme.muted }) : ''}
+        ${textBlock(node.title, textX, textY, { weight: 600 })}
+        ${node.detail ? textBlock(node.detail, textX, textY + node.title.height + 6, { fill: theme.muted }) : ''}
       </a>
     </g>
   `;

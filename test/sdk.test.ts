@@ -76,6 +76,32 @@ test('all fragment links resolve and each shared detail article occurs only once
   assert.ok((html.match(/data-entity-detail="details-sdk"/g) ?? []).length >= 2);
 });
 
+test('detail links locate related nodes in their chart and shared nodes across charts', () => {
+  const html = render(report);
+  for (const id of ['system-architecture', 'generation-sequence']) {
+    assert.match(html, new RegExp(`data-entity-detail="details-sdk" data-chart="${id}"`));
+    assert.match(html, new RegExp(`<section class="entity-context" data-detail-chart="${id}">`));
+    assert.match(html, new RegExp(`href="#entity-${id}-sdk" data-locate-node="entity-${id}-sdk"`));
+  }
+  assert.doesNotMatch(html, /<h3><a href="#diagram-/);
+  assert.doesNotMatch(html, /data-detail-back/);
+  const articles = [...html.matchAll(/<article id="details-[^]*?<\/article>/g)];
+  for (const [article] of articles) {
+    assert.doesNotMatch(article, /data-entity-detail=/);
+    for (const [, chartId, section] of article.matchAll(/data-detail-chart="([^"]+)"([^]*?)<\/section>/g)) {
+      for (const [, target] of section.matchAll(/data-locate-node="([^"]+)"/g)) {
+        assert.ok(target.startsWith(`entity-${chartId}-`), target);
+      }
+    }
+  }
+  assert.match(html, /href="#entity-system-architecture-layout" data-locate-node="entity-system-architecture-layout" title="在当前图中定位此节点">图表布局<\/a>/);
+  const selfRelation = render(document().diagram(timeline([
+    { id: 'self', from: a, to: a, label: '内部处理' },
+    { id: 'done', from: a, to: a, label: '完成', replyTo: 'self' },
+  ])));
+  assert.match(selfRelation, /<td>内部<\/td><td>服务 A<\/td>/);
+});
+
 test('tags render as structured properties without changing geometry or parsing Markdown', () => {
   const detailed = entity({ id: 'a', label: '服务 A', tags: [{ id: 'public', label: '**公开接口**' }, { id: 'safe', label: '<b>文字</b>' }] });
   const first = compile(document().diagram(chart())).scenes[0];
@@ -377,7 +403,7 @@ test('Markdown rejects unsafe links and raw HTML with source locations', () => {
   assert.throws(() => document().markdown('第一块').markdown('<div>第二块</div>'), error => error instanceof DiagnosticError && error.diagnostics[0].path === 'blocks[1].markdown.line[1]');
 });
 
-test('CommonMark parses nested formatting, references and escaped entities', () => {
+test('Markdown parses nested formatting, references and escaped entities', () => {
   const html = render(document().markdown('标题\n====\n\n**加粗里的 _强调_**，``a ` b``，&lt;b&gt; 与 &amp;。\n\n[**引用**][page]\n\n[page]: https://example.com/a_(b) "说明"'));
   assert.match(html, /<h1[^>]*>标题<\/h1>/);
   assert.match(html, /<strong>加粗里的 <em>强调<\/em><\/strong>/);
@@ -387,7 +413,7 @@ test('CommonMark parses nested formatting, references and escaped entities', () 
   assert.match(html, /href="https:\/\/example.com\/a_\(b\)" title="说明"><strong>引用<\/strong>/);
 });
 
-test('CommonMark lists, quotes and code blocks preserve nested structure', () => {
+test('Markdown lists, quotes and code blocks preserve nested structure', () => {
   const html = render(document().markdown('- 一级\n  - 二级\n\n> 引用\n>\n> 第二段\n\n---\n\n~~~js\nconst x = 1;\n~~~\n\n```txt\n到文件末尾'));
   assert.match(html, /<ul><li>一级\n<ul><li>二级<\/li><\/ul><\/li><\/ul>/);
   assert.match(html, /<blockquote><p>引用<\/p>\n<p>第二段<\/p><\/blockquote>/);

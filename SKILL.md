@@ -1,6 +1,6 @@
 ---
 name: visualize-skills
-description: 用 TypeScript SDK 声明对象标签、关系、逻辑分区、位置、尺寸和报告 Markdown，生成可打开节点详情的 HTML 架构图、时序图或多图报告。适用于解释系统结构、组件职责和同步调用，不用于统计图表或自由网页设计。
+description: 创建可离线交互的 HTML 架构图、同步调用时序图和图文报告。用于可视化解释系统结构、组件依赖或调用过程，支持节点属性查看与关联节点定位。不用于统计图表或网页界面设计。
 ---
 
 # 声明式可视化
@@ -22,12 +22,12 @@ description: 用 TypeScript SDK 声明对象标签、关系、逻辑分区、位
 
 ## 生成与修正
 
-1. 创建 TypeScript ES module 脚本，使用 `.ts`。先在内容项目安装 `@visualize/semantic` 分发包，再从 `@visualize/semantic` 导入 API。不要引用包内源码路径。默认导出最终文档。
-2. 修改 SDK 源码或示例后运行 `pnpm typecheck`。在用户项目运行 `pnpm exec visualize <脚本> --check`，同时检查语义与布局。
+1. 创建 TypeScript ES module 脚本，使用 `.ts`。使用完整 Skill 分发目录时，从本 Skill 目录下 `dist/index.js` 的绝对路径导入 API，无需安装包。若内容项目已经安装 `@visualize/semantic`，也可通过包名导入。不要引用 `src/`。默认导出最终文档。
+2. 运行 `node <Skill目录>/dist/cli.js <脚本> --check`，同时检查语义与布局。使用已安装包时可运行 `pnpm exec visualize <脚本> --check`。仅修改 SDK 源码时需要执行开发构建和 `pnpm typecheck`。
 3. 根据返回的 `code`、`path`、`message` 和 `hint` 修正声明。容量超限时拆图，尺寸不足时调整声明。报告正文可以解释结论，但不能用它替代图表缺失的结构化语义，不静默删掉事实。
-4. 运行 `pnpm exec visualize <脚本> -o <产物.html>`。命令执行普通本地 TypeScript 或 JavaScript，并非代码隔离环境。
+4. 运行 `node <Skill目录>/dist/cli.js <脚本> -o <产物.html>`，或已安装包的 `pnpm exec visualize <脚本> -o <产物.html>`。命令执行普通本地 TypeScript 或 JavaScript，并非代码隔离环境。
 5. 打开生成文件，检查节点位置和关系文字；实际点击节点，验证标签、角色、关系和关闭操作；检查执行条是否对应调用与返回。然后交付 HTML，它可以离线阅读，不需要服务器。
 
 只组合一张图就是单图产物；追加 Markdown 或多张图就得到报告。位置通过架构节点的 `position` 声明，尺寸通过节点的 `size` 声明；颜色、字号、形状和交互由系统提供。不得自行拼接 HTML、SVG、CSS 或交互脚本，也不要绕过诊断直接修改输出。
 
-运行需要 Node.js 22.18 或更新版本与已安装的项目依赖。用户在内容项目安装分发包，具体命令见 [分发与使用](README.md#分发与使用)。仓库开发先运行 `pnpm install --frozen-lockfile` 和 `pnpm build`。开发使用 pnpm 和 devenv，缺少系统运行时则反馈缺失项，不通过其他包管理方式安装。
+运行只需要 Node.js 22.18 或更新版本。完整分发包包含 `dist/`、模板和参考文档，没有第三方运行时依赖，也不要求安装 pnpm。具体命令见 [分发与使用](README.md#分发与使用)。仓库开发先运行 `pnpm install --frozen-lockfile` 和 `pnpm build`。开发使用 pnpm 和 devenv，缺少系统运行时则反馈缺失项，不通过其他包管理方式安装。

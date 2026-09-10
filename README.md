@@ -4,7 +4,7 @@
 
 ## 运行
 
-需要 Node.js 22.18 或更新版本。SDK 分发编译后的 JavaScript 与 TypeScript 类型声明；用户的内容脚本可使用 TypeScript。Markdown 语法由 `mdast-util-from-markdown` 解析。TypeScript 和 Node 类型声明用于开发检查。
+需要 Node.js 22.18 或更新版本。SDK 分发编译后的 JavaScript 与 TypeScript 类型声明；用户的内容脚本可使用 TypeScript。运行时没有第三方包依赖，Markdown 由项目内的 TypeScript 解析器处理。TypeScript 和 Node 类型声明只用于开发检查，使用分发包时无需安装。
 
 ```sh
 pnpm install --frozen-lockfile
@@ -21,7 +21,7 @@ pnpm test
 
 ## 分发与使用
 
-用户通过包名 `@visualize/semantic` 导入 SDK，不引用仓库的 `src/`。`visualize` 是安装后提供的生成命令。包名中的 `semantic` 表示作者声明对象和关系的语义，外观由 SDK 生成。
+分发包包含已构建的 SDK、HTML/CSS/JS 模板、Skill 手册和示例，运行时只需要 Node.js。SDK 名称中的 `semantic` 表示作者声明对象和关系的语义，外观由 SDK 生成。
 
 当前尚未发布到 npm。可先构建本地分发包：
 
@@ -29,7 +29,16 @@ pnpm test
 pnpm pack --pack-destination output
 ```
 
-把生成的 `visualize-semantic-0.1.0.tgz` 交给使用者，在其内容项目中安装：
+把生成的 `visualize-semantic-0.1.0.tgz` 交给使用者。解压得到完整 Skill 目录后，无需 `pnpm install` 即可运行包内示例：
+
+```sh
+tar -xzf visualize-semantic-0.1.0.tgz
+node package/dist/cli.js package/examples/self-explanation.ts -o report.html
+```
+
+用户在自己的目录编写内容脚本时，可从已解压 Skill 的绝对路径导入 `dist/index.js`，再用 `node /实际路径/package/dist/cli.js <脚本.ts> -o <产物.html>` 运行。只复制 `SKILL.md` 不够，需一起分发构建产物、模板和参考文档。
+
+也可以在内容项目中安装本地包，继续使用 `@visualize/semantic` 和 `pnpm exec visualize`：
 
 ```sh
 pnpm add /实际路径/visualize-semantic-0.1.0.tgz
@@ -71,7 +80,7 @@ pnpm exec visualize report.ts --check
 pnpm exec visualize report.ts -o output/report.html
 ```
 
-`label` 是显示名称，`tags` 是分类标签。详情面板展示这些标签，以及从图中提取的角色、所属分区和关系，不接受 Markdown 正文或任意属性字典。架构节点与时序参与者都必须声明 `size: { width, height }`；文字或分区内节点放不下时返回诊断，不自动放大。
+`label` 是显示名称，`tags` 是分类标签。详情面板展示这些标签，以及当前图中的角色、所属分区和关系。点击关联节点会关闭面板，在当前图中定位并高亮目标节点；跨图定位会在指定图中定位同一节点。面板不接受 Markdown 正文或任意属性字典。架构节点与时序参与者都必须声明 `size: { width, height }`；文字或分区内节点放不下时返回诊断，不自动放大。
 
 `partition` 表示逻辑分区，声明在架构图的 `partitions` 中；节点用 `partition` 字段引用所属分区。它显示为虚线框，不进入实体列表，不承担角色或参与连线。完整写法见 [架构图 API](references/api.md#架构图与逻辑分区)。
 
@@ -84,4 +93,6 @@ pnpm exec visualize report.ts -o output/report.html
 - [架构说明](docs/architecture.md)：模块责任、内部数据与确定性范围。
 - [自我解释示例](examples/self-explanation.ts)：架构与时序共享身份和标签，并组合成报告。
 
-`pnpm build` 生成 SDK 与类型声明，`pnpm typecheck` 随后检查示例和测试。打包前会自动运行这两步。分发测试会把实际 tarball 安装进独立目录，检查包名导入、类型约束和 CLI。Skill 手册随包分发，尚未注册到全局 Skill 目录。
+`src/templates/` 保存页面和节点资料的 HTML 模板、`report.css` 与 `interactions.ts`。浏览器脚本编译成独立 JS；模板随包分发，在渲染时内嵌进单文件报告。
+
+`pnpm build` 生成 SDK、类型声明和模板资源，`pnpm typecheck` 随后检查示例和测试。打包前会自动运行这两步。分发测试既检查独立安装后的包名导入、类型约束和 CLI，也验证直接解压分发包后，在没有 `node_modules` 的目录仅用 Node 运行示例。Skill 手册随包分发，尚未注册到全局 Skill 目录。
