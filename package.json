@@ -1,0 +1,45 @@
+{
+  "name": "@visualize/semantic",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Declare relationships and Markdown; generate consistent standalone HTML.",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "bin": {
+    "visualize": "./dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "pnpm build && tsc --noEmit",
+    "test": "pnpm typecheck && node --test test/*.test.ts",
+    "example": "pnpm build && node dist/cli.js examples/self-explanation.ts -o output/self-explanation.html",
+    "example:single": "pnpm build && node dist/cli.js examples/single.ts -o output/architecture.html",
+    "prepack": "pnpm typecheck"
+  },
+  "engines": {
+    "node": ">=22.18"
+  },
+  "packageManager": "pnpm@11.18.0",
+  "dependencies": {
+    "mdast-util-from-markdown": "^2.0.3"
+  },
+  "devDependencies": {
+    "@types/mdast": "^4.0.4",
+    "@types/node": "^22.20.1",
+    "typescript": "^7.0.2"
+  },
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "examples",
+    "references",
+    "docs",
+    "SKILL.md",
+    "README.md"
+  ]
+}
