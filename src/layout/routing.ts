@@ -1,4 +1,4 @@
-import type { ArchitectureChart, EdgeLayout, NodeLayout, PartitionLayout, Point, Position, Rect, TextLayout } from '../model.ts';
+import type { EdgeLayout, NodeLayout, Point, Position, Rect, Relation, TextLayout } from '../model.ts';
 import { fail } from '../diagnostics.ts';
 import { wrap } from '../design.ts';
 import { path } from './common.ts';
@@ -55,7 +55,12 @@ function candidates(a: Point, b: Point, columns: number[], rows: number[]): Poin
   return result;
 }
 
-function labelPosition(points: Point[], label: TextLayout, obstacles: Rect[], labels: Rect[], usedEdges: Point[][]): Position | undefined {
+function contains(bounds: Rect, box: Rect) {
+  return box.x >= bounds.x && box.y >= bounds.y
+    && box.x + box.width <= bounds.x + bounds.width && box.y + box.height <= bounds.y + bounds.height;
+}
+
+function labelPosition(points: Point[], label: TextLayout, obstacles: Rect[], labels: Rect[], usedEdges: Point[][], bounds?: Rect): Position | undefined {
   const candidates = [];
   for (let i = 1; i < points.length; i++) {
     const a = points[i - 1], b = points[i];
@@ -70,16 +75,21 @@ function labelPosition(points: Point[], label: TextLayout, obstacles: Rect[], la
   return candidates.find(position => {
     const box = { ...position, width: label.width, height: label.height };
     return box.x >= 8 && box.y >= 8
+      && (!bounds || contains(bounds, { x: box.x - 3, y: box.y - 2, width: box.width + 6, height: box.height + 4 }))
       && ![...obstacles, ...labels].some(obstacle => overlaps(box, obstacle, 6))
       && ![points, ...usedEdges].some(route => route.slice(1).some((point, i) => crosses(route[i], point, box, 2)));
   });
 }
 
-export function routeRelations(chart: ArchitectureChart, nodes: NodeLayout[], partitions: PartitionLayout[]): EdgeLayout[] {
+export function routeRelations(chart: { id: string; relations: readonly Relation[] }, nodes: NodeLayout[], regions: Rect[], bounds?: Rect): EdgeLayout[] {
   const boxes = new Map(nodes.map(node => [node.id, node]));
-  const obstacles: Rect[] = [...nodes, ...partitions.map(partition => ({ x: partition.x + 16, y: partition.y + 8, width: partition.title.width + 16, height: partition.title.height + 8 }))];
+  const obstacles: Rect[] = [...nodes, ...regions];
   const columns = [12, ...obstacles.flatMap(box => [box.x - 24, box.x + box.width + 24])].filter(x => x >= 12);
   const rows = [12, ...obstacles.flatMap(box => [box.y - 32, box.y + box.height + 32])].filter(y => y >= 12);
+  if (bounds) {
+    columns.push(bounds.x + 12, bounds.x + bounds.width - 12);
+    rows.push(bounds.y + 12, bounds.y + bounds.height - 12);
+  }
   const labels: Rect[] = [], usedEdges: Point[][] = [];
 
   return chart.relations.map(relation => {
@@ -96,13 +106,14 @@ export function routeRelations(chart: ArchitectureChart, nodes: NodeLayout[], pa
         if (from.id === to.id && start.side === end.side) continue;
         for (const core of candidates(start.lead, end.lead, columns, rows)) {
           if (core.some(point => point[0] < 8 || point[1] < 8)) continue;
+          if (bounds && core.some(([x, y]) => !contains(bounds, { x, y, width: 0, height: 0 }))) continue;
           if (core.slice(1).some((point, i) => obstacles.some(box => crosses(core[i], point, box, 8)))) continue;
           if (obstacles.some(box => box !== from && crosses(start.point, start.lead, box, 4))) continue;
           if (obstacles.some(box => box !== to && crosses(end.lead, end.point, box, 4))) continue;
           const points = compact([start.point, ...core, end.point]);
           if (usedEdges.some(previous => JSON.stringify(previous) === JSON.stringify(points) || JSON.stringify([...previous].reverse()) === JSON.stringify(points))) continue;
           if (points.slice(1).some((point, i) => labels.some(box => crosses(points[i], point, box, 4)))) continue;
-          const position = labelPosition(points, label, obstacles, labels, usedEdges);
+          const position = labelPosition(points, label, obstacles, labels, usedEdges, bounds);
           if (!position) continue;
           const length = points.slice(1).reduce((sum, point, i) => sum + Math.abs(point[0] - points[i][0]) + Math.abs(point[1] - points[i][1]), 0);
           choices.push({ points, position, cost: length + (points.length - 2) * 24 });

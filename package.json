@@ -8,7 +8,8 @@
     "typecheck": "tsc --noEmit",
     "test": "pnpm typecheck && node --test test/*.test.ts",
     "example": "node src/cli.ts examples/self-explanation.ts -o output/self-explanation.html",
-    "example:single": "node src/cli.ts examples/single.ts -o output/architecture.html"
+    "example:single": "node src/cli.ts examples/single.ts -o output/architecture.html",
+    "example:swimlane": "node src/cli.ts examples/swimlane.ts -o output/swimlane.html"
   },
   "engines": {
     "node": ">=22.18"

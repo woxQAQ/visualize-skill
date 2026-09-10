@@ -48,11 +48,18 @@ function nodeMarkup(node: NodeLayout, chart: Chart, ctx: LayoutContext) {
 export function renderSvg(scene: Scene, chart: Chart, ctx: LayoutContext) {
   const callMarker = `arrow-${scene.id}`;
   const returnMarker = `return-arrow-${scene.id}`;
-  const backgrounds = (scene.kind === 'architecture' ? scene.partitions : []).map(partition => `
+  const partitions = (scene.kind === 'architecture' ? scene.partitions : []).map(partition => `
     <g data-partition="${partition.id}" role="group" aria-label="${escape(partition.title.lines.join(''))}，逻辑分区">
       <rect x="${partition.x}" y="${partition.y}" width="${partition.width}" height="${partition.height}" rx="4"
         fill="#fafbfc" stroke="${theme.line}" stroke-dasharray="6 4"/>
       ${textBlock(partition.title, partition.x + 24, partition.y + 12, { fill: theme.muted, weight: 600 })}
+    </g>
+  `).join('');
+  const lanes = (scene.kind === 'swimlane' ? scene.lanes : []).map(lane => `
+    <g data-lane="${lane.id}" role="group" aria-label="${escape(lane.title.lines.join(''))}，泳道">
+      <rect x="${lane.x}" y="${lane.y}" width="${lane.width}" height="${lane.height}" fill="white" stroke="${theme.line}"/>
+      <rect x="${lane.x}" y="${lane.y}" width="${lane.headerWidth}" height="${lane.height}" fill="#f4f5f6" stroke="${theme.line}"/>
+      ${textBlock(lane.title, lane.x + 16, lane.y + (lane.height - lane.title.height) / 2, { weight: 600 })}
     </g>
   `).join('');
   const lifelines = (scene.kind === 'sequence' ? scene.lifelines : []).map(line => `
@@ -78,7 +85,7 @@ export function renderSvg(scene: Scene, chart: Chart, ctx: LayoutContext) {
       viewBox="0 0 ${scene.width} ${scene.height}" role="group"
       aria-labelledby="svg-title-${scene.id} svg-desc-${scene.id}" style="font-family:${theme.font};color:${theme.ink}">
       <title id="svg-title-${scene.id}">${escape(chart.title)}</title>
-      <desc id="svg-desc-${scene.id}">点击节点或按 Enter 查看详细内容。${scene.kind === 'sequence' ? '实线表示同步调用，虚线表示返回，生命线上的矩形表示执行区间。' : '虚线框表示逻辑分区，箭头表示依赖，关系文字直接标注在线旁。'}</desc>
+      <desc id="svg-desc-${scene.id}">点击节点或按 Enter 查看详细内容。${scene.kind === 'sequence' ? '实线表示同步调用，虚线表示返回，生命线上的矩形表示执行区间。' : scene.kind === 'swimlane' ? '横向泳道表示负责的人或系统，节点表示流程活动，箭头和标签表示流转方向与条件。' : '虚线框表示逻辑分区，箭头表示依赖，关系文字直接标注在线旁。'}</desc>
       <defs>
         <marker id="${callMarker}" markerWidth="7" markerHeight="7" refX="7" refY="3.5" orient="auto">
           <path d="M 0 0 L 7 3.5 L 0 7 z" fill="${theme.line}"/>
@@ -87,7 +94,7 @@ export function renderSvg(scene: Scene, chart: Chart, ctx: LayoutContext) {
           <path d="M 0 0 L 7 4 L 0 8" fill="none" stroke="${theme.line}"/>
         </marker>
       </defs>
-      ${backgrounds}${lifelines}${frames(scene)}${activations}${edges}
+      ${partitions}${lanes}${lifelines}${frames(scene)}${activations}${edges}
       ${scene.nodes.map(node => nodeMarkup(node, chart, ctx)).join('')}
       ${labels}
     </svg>

@@ -18,6 +18,7 @@ Use Node.js 22.18+ and the pnpm version declared in `package.json`. Enter the Ni
 - `pnpm test`: type-check, then run all Node tests.
 - `pnpm example`: generate the combined architecture and sequence report.
 - `pnpm example:single`: generate the standalone architecture diagram.
+- `pnpm example:swimlane`: generate the swimlane workflow report.
 - `node src/cli.ts examples/self-explanation.ts --check`: validate declarations and layout without writing HTML.
 
 There is no build step. Node runs TypeScript source directly; report generation requires no third-party runtime dependencies.
@@ -26,7 +27,7 @@ There is no build step. Node runs TypeScript source directly; report generation 
 
 Follow existing two-space indentation, single quotes, and semicolons. Use explicit `.ts` extensions for local imports and `import type` for type-only imports. Keep TypeScript compatible with type stripping. Browser JavaScript uses JSDoc and participates in strict checking.
 
-Use lowercase hyphenated declaration identifiers, such as `order-api`. Preserve immutable declarations and explicit geometry. Partitions group components by shared responsibility or membership; they are not entities or relation endpoints. Avoid speculative abstractions and dependencies. No formatter or linter is configured.
+Use lowercase hyphenated declaration identifiers, such as `order-api`. Preserve immutable declarations and explicit geometry. `ArchitecturePartition` belongs only to architecture diagrams and groups components by shared responsibility or membership; it is not an entity or relation endpoint. Each diagram type owns its organization model. Avoid speculative abstractions and dependencies. No formatter or linter is configured.
 
 ## Testing Guidelines
 

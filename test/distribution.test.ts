@@ -32,6 +32,12 @@ test('copied skill runs from source without installation or build artifacts', as
   assert.doesNotThrow(() => new Script(script));
   assert.doesNotMatch(html, /<link|\bsrc=/);
 
+  const swimlaneOutput = join(dir, 'swimlane.html');
+  await exec(process.execPath, [cli, join(dir, 'examples/swimlane.ts'), '-o', swimlaneOutput], { cwd: tmpdir() });
+  const swimlaneHtml = await readFile(swimlaneOutput, 'utf8');
+  assert.match(swimlaneHtml, /data-lane="employee"/);
+  assert.match(swimlaneHtml, /所属泳道/);
+
   const external = await mkdtemp(join(tmpdir(), 'visualize author '));
   t.after(() => rm(external, { recursive: true, force: true }));
   const entry = pathToFileURL(join(dir, 'src/index.ts')).href;

@@ -1,4 +1,4 @@
-import type { ArchitectureChart, ArchitectureScene, LayoutContext, PartitionLayout } from '../model.ts';
+import type { ArchitectureChart, ArchitectureScene, LayoutContext, ArchitecturePartitionLayout } from '../model.ts';
 import { fail } from '../diagnostics.ts';
 import { wrap } from '../design.ts';
 import { nodeBox, finish } from './common.ts';
@@ -8,7 +8,7 @@ const margin = 32;
 const padding = 24;
 
 export function layoutArchitecture(chart: ArchitectureChart, ctx: LayoutContext): ArchitectureScene {
-  const partitions: PartitionLayout[] = chart.partitions.map(partition => {
+  const partitions: ArchitecturePartitionLayout[] = chart.partitions.map(partition => {
     const { width, height } = partition.size;
     if (width <= padding * 2) fail('PARTITION_CONTENT_FIT', `diagram.${chart.id}.partitions.${partition.id}.size`, '分区没有足够的内容宽度。', '增加分区声明的宽度。');
     const title = wrap(partition.label, width - padding * 2, `diagram.${chart.id}.partitions.${partition.id}.label`, 2);
@@ -42,7 +42,9 @@ export function layoutArchitecture(chart: ArchitectureChart, ctx: LayoutContext)
       }
     }
   }
-  const edges = routeRelations(chart, nodes, partitions);
+  const edges = routeRelations(chart, nodes, partitions.map(partition => ({
+    x: partition.x + 16, y: partition.y + 8, width: partition.title.width + 16, height: partition.title.height + 8
+  })));
   const bounds = [...nodes, ...partitions];
   const width = Math.max(...bounds.map(box => box.x + box.width), ...edges.flatMap(edge => [edge.labelX + edge.label.width, ...edge.points.map(point => point[0])])) + margin;
   const height = Math.max(...bounds.map(box => box.y + box.height), ...edges.flatMap(edge => [edge.labelY + edge.label.height, ...edge.points.map(point => point[1])])) + margin;

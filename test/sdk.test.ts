@@ -1,4 +1,4 @@
-import type { ArchitectureOptions, EntityInput, Partition, StepInput } from '../src/index.ts';
+import type { ArchitectureOptions, EntityInput, ArchitecturePartition, StepInput } from '../src/index.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as sdk from '../src/index.ts';
@@ -25,7 +25,7 @@ test('self explanation uses architecture and sequence with serializable shared t
   assert.equal(semantic.entities.filter(entity => entity.id === 'sdk').length, 1);
   assert.ok(semantic.entities.find(entity => entity.id === 'skill')!.tags.length > 0);
   assert.deepEqual(JSON.parse(JSON.stringify(semantic)), semantic);
-  assert.deepEqual(Object.keys(sdk).sort(), ['DiagnosticError', 'architecture', 'compile', 'document', 'entity', 'render', 'role', 'sequence'].sort());
+  assert.deepEqual(Object.keys(sdk).sort(), ['DiagnosticError', 'architecture', 'compile', 'document', 'entity', 'render', 'role', 'sequence', 'swimlane'].sort());
   for (const scene of scenes) {
     for (const node of scene.nodes) {
       assert.ok(node.x >= 0 && node.y >= 0);
@@ -141,8 +141,8 @@ test('shared entity and tag identifiers cannot have conflicting definitions', ()
   assert.throws(() => compile(document().diagram(chart({ nodes: [appearance(revised), appearance(conflicting, 340)] }))), hasCode('TAG_IDENTITY_CONFLICT'));
 });
 
-test('partitions are logical regions with explicit geometry, not entities', () => {
-  const partition: Partition = { id: 'zone', label: '逻辑区域', position: { x: 80, y: 100 }, size: { width: 400, height: 300 } };
+test('architecture partitions are local component groups with explicit geometry', () => {
+  const partition: ArchitecturePartition = { id: 'zone', label: '逻辑区域', position: { x: 80, y: 100 }, size: { width: 400, height: 300 } };
   const grouped = chart({ partitions: [partition], nodes: [appearance(b, 40, 60, 'zone')], relations: [] });
   const doc = document().diagram(grouped);
   const { semantic, scenes } = compile(doc);
@@ -169,7 +169,16 @@ test('invalid coordinates and overlapping siblings produce actionable diagnostic
   assert.throws(() => compile(document().diagram(chart({ nodes: [appearance(a), appearance(b, 100)] }))), hasCode('NODE_OVERLAP'));
 });
 
-test('position is local to architecture and does not expose arbitrary visual styles', () => {
+test('shared entities and sequence declarations reject architecture partition fields', () => {
+  // @ts-expect-error Partition membership belongs to an architecture appearance, not shared identity.
+  assert.throws(() => entity({ id: 'a', label: 'A', partition: 'zone' }), hasCode('UNKNOWN_FIELD'));
+  // @ts-expect-error Sequence charts do not define architecture partitions.
+  assert.throws(() => sequence({ id: 'timeline', title: '时序', participants, steps: [], partitions: [] }), hasCode('UNKNOWN_FIELD'));
+  // @ts-expect-error Sequence participants do not have architecture partition membership.
+  assert.throws(() => sequence({ id: 'timeline', title: '时序', participants: [{ entity: a, role: worker, size: { width: 160, height: 56 }, partition: 'zone' }], steps: [] }), hasCode('UNKNOWN_FIELD'));
+});
+
+test('explicit positions are rejected on sequence participants and arbitrary visual styles are unavailable', () => {
   // @ts-expect-error Deliberately invalid input also exercises the JavaScript runtime boundary.
   assert.throws(() => entity({ id: 'a', label: 'A', color: 'red' }), hasCode('UNKNOWN_FIELD'));
   // @ts-expect-error Deliberately invalid input also exercises the JavaScript runtime boundary.
@@ -247,7 +256,7 @@ test('missing endpoints are diagnosed together before layout', () => {
 
 test('partition membership is validated while dependency cycles remain valid', () => {
   assert.throws(() => compile(document().diagram(chart({ nodes: [appearance(a, 0, 0, 'missing')], relations: [] }))), hasCode('UNKNOWN_PARTITION'));
-  const zone: Partition = { id: 'zone', label: '区域', position: { x: 0, y: 0 }, size: { width: 640, height: 240 } };
+  const zone: ArchitecturePartition = { id: 'zone', label: '区域', position: { x: 0, y: 0 }, size: { width: 640, height: 240 } };
   const grouped = { partitions: [zone], nodes: [appearance(a, 0, 0, 'zone'), appearance(b, 340, 0, 'zone')] };
   assert.throws(() => compile(document().diagram(chart({ ...grouped, partitions: [zone, zone] }))), hasCode('DUPLICATE_PARTITION'));
   assert.throws(() => compile(document().diagram(chart({ partitions: [zone] }))), hasCode('EMPTY_PARTITION'));
@@ -260,7 +269,7 @@ test('partition membership is validated while dependency cycles remain valid', (
 });
 
 test('partitions cannot overlap each other or ungrouped nodes', () => {
-  const zone: Partition = { id: 'zone', label: '区域', position: { x: 0, y: 0 }, size: { width: 400, height: 240 } };
+  const zone: ArchitecturePartition = { id: 'zone', label: '区域', position: { x: 0, y: 0 }, size: { width: 400, height: 240 } };
   assert.throws(() => compile(document().diagram(chart({ partitions: [zone], nodes: [appearance(a, 0, 0, 'zone'), appearance(b, 300)], relations: [] }))), hasCode('REGION_OVERLAP'));
   const second = { ...zone, id: 'second', position: { x: 380, y: 0 } };
   assert.throws(() => compile(document().diagram(chart({ partitions: [zone, second], nodes: [appearance(a, 0, 0, 'zone'), appearance(b, 0, 0, 'second')], relations: [] }))), hasCode('REGION_OVERLAP'));

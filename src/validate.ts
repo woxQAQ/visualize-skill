@@ -27,7 +27,7 @@ export function validate(doc: SemanticDocument): SemanticDocument {
     const path = `blocks[${index}].diagram[${chart.id}]`;
     if (diagrams.has(chart.id)) add('DUPLICATE_DIAGRAM', path, '图表标识重复。', '为每个图表使用唯一标识。');
     diagrams.add(chart.id);
-    const nodes = chart.kind === 'architecture' ? chart.nodes : chart.participants;
+    const nodes = chart.kind === 'sequence' ? chart.participants : chart.nodes;
     const ids = new Set();
     for (const node of nodes) {
       if (ids.has(node.entity)) add('DUPLICATE_NODE', `${path}.${node.entity}`, '同一对象在此图中重复出现。', '每张图只声明一次对象，再通过多条关系引用。');
@@ -51,6 +51,17 @@ export function validate(doc: SemanticDocument): SemanticDocument {
       }
       for (const node of chart.nodes) {
         if (node.partition && !partitionIds.has(node.partition)) add('UNKNOWN_PARTITION', `${path}.${node.entity}.partition`, `分区 ${node.partition} 不在图中。`, '在 partitions 中声明该逻辑分区。实体不能充当分区。');
+      }
+    }
+    if (chart.kind === 'swimlane') {
+      const laneIds = new Set<string>();
+      for (const lane of chart.lanes) {
+        if (laneIds.has(lane.id)) add('DUPLICATE_LANE', `${path}.lanes.${lane.id}`, '泳道标识重复。', '为本图每条泳道使用唯一标识。');
+        laneIds.add(lane.id);
+        if (!chart.nodes.some(node => node.lane === lane.id)) add('EMPTY_LANE', `${path}.lanes.${lane.id}`, '泳道没有包含节点。', '为流程节点声明 lane，或移除空泳道。');
+      }
+      for (const node of chart.nodes) {
+        if (!laneIds.has(node.lane)) add('UNKNOWN_LANE', `${path}.${node.entity}.lane`, `泳道 ${node.lane} 不在图中。`, '在 lanes 中声明该泳道；每个节点必须属于一条泳道。');
       }
     }
     if (chart.kind === 'sequence') {

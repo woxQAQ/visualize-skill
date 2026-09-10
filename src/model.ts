@@ -20,7 +20,7 @@ export interface ArchitectureNode<E = string, R = string> extends Participant<E,
   readonly position: Position;
   readonly partition?: string;
 }
-export interface Partition {
+export interface ArchitecturePartition {
   readonly id: string;
   readonly label: string;
   readonly position: Position;
@@ -51,7 +51,7 @@ export interface ArchitectureChart<E = string, R = string> {
   readonly id: string;
   readonly title: string;
   readonly nodes: readonly ArchitectureNode<E, R>[];
-  readonly partitions: readonly Partition[];
+  readonly partitions: readonly ArchitecturePartition[];
   readonly relations: readonly Relation[];
 }
 export interface SequenceChart<E = string, R = string> {
@@ -61,13 +61,32 @@ export interface SequenceChart<E = string, R = string> {
   readonly participants: readonly Participant<E, R>[];
   readonly steps: readonly Step[];
 }
-export type Chart = ArchitectureChart | SequenceChart;
-export type Diagram = ArchitectureChart<Entity, Role> | SequenceChart<Entity, Role>;
+export interface Lane {
+  readonly id: string;
+  readonly label: string;
+  readonly height: number;
+}
+export interface SwimlaneNode<E = string, R = string> extends Participant<E, R> {
+  readonly lane: string;
+  readonly position: Position;
+}
+export interface SwimlaneChart<E = string, R = string> {
+  readonly kind: 'swimlane';
+  readonly id: string;
+  readonly title: string;
+  readonly width: number;
+  readonly headerWidth: number;
+  readonly lanes: readonly Lane[];
+  readonly nodes: readonly SwimlaneNode<E, R>[];
+  readonly relations: readonly Relation[];
+}
+export type Chart = ArchitectureChart | SequenceChart | SwimlaneChart;
+export type Diagram = ArchitectureChart<Entity, Role> | SequenceChart<Entity, Role> | SwimlaneChart<Entity, Role>;
 export interface ArchitectureOptions {
   readonly id: string;
   readonly title: string;
   readonly nodes: readonly ArchitectureNode<EntityInput, Role>[];
-  readonly partitions?: readonly Partition[];
+  readonly partitions?: readonly ArchitecturePartition[];
   readonly relations: readonly RelationInput[];
 }
 export interface SequenceOptions {
@@ -75,6 +94,15 @@ export interface SequenceOptions {
   readonly title: string;
   readonly participants: readonly Participant<EntityInput, Role>[];
   readonly steps: readonly StepInput[];
+}
+export interface SwimlaneOptions {
+  readonly id: string;
+  readonly title: string;
+  readonly width: number;
+  readonly headerWidth?: number;
+  readonly lanes: readonly Lane[];
+  readonly nodes: readonly SwimlaneNode<EntityInput, Role>[];
+  readonly relations: readonly RelationInput[];
 }
 
 export type Inline =
@@ -111,7 +139,7 @@ export interface NodeLayout extends Rect {
   title: TextLayout;
   detail: TextLayout | null;
 }
-export interface PartitionLayout extends Rect {
+export interface ArchitecturePartitionLayout extends Rect {
   id: string;
   title: TextLayout;
   headerHeight: number;
@@ -132,13 +160,22 @@ export interface Activation extends Rect { id: string; callId: string; entity: s
 export interface Fragment extends Rect { id: string; operator: 'alt'; branches: { y: number; label: TextLayout }[] }
 export interface ArchitectureScene {
   kind: 'architecture'; id: string; width: number; height: number;
-  nodes: NodeLayout[]; partitions: PartitionLayout[]; edges: EdgeLayout[];
+  nodes: NodeLayout[]; partitions: ArchitecturePartitionLayout[]; edges: EdgeLayout[];
 }
 export interface SequenceScene {
   kind: 'sequence'; id: string; width: number; height: number;
   nodes: NodeLayout[]; edges: SequenceEdgeLayout[]; fragments: Fragment[]; activations: Activation[];
   lifelines: { x: number; y1: number; y2: number }[];
 }
-export type Scene = ArchitectureScene | SequenceScene;
+export interface LaneLayout extends Rect {
+  id: string;
+  title: TextLayout;
+  headerWidth: number;
+}
+export interface SwimlaneScene {
+  kind: 'swimlane'; id: string; width: number; height: number;
+  nodes: NodeLayout[]; lanes: LaneLayout[]; edges: EdgeLayout[];
+}
+export type Scene = ArchitectureScene | SequenceScene | SwimlaneScene;
 export interface Color { ink: string; fill: string }
 export interface LayoutContext { entities: Map<string, Entity>; colors: Map<string, Color> }

@@ -1,4 +1,4 @@
-import type { ArchitectureChart, ArchitectureNode, ArchitectureOptions, Block, Diagram, Entity, EntityInput, Participant, Partition, Position, Role, SemanticDocument, SequenceChart, SequenceOptions, Size, Step, Tag } from './model.ts';
+import type { ArchitectureChart, ArchitectureNode, ArchitectureOptions, Block, Diagram, Entity, EntityInput, Participant, ArchitecturePartition, Position, Role, SemanticDocument, SequenceChart, SequenceOptions, Size, Step, SwimlaneChart, SwimlaneOptions, Tag } from './model.ts';
 import { array, fail, fields, freeze, identifier, string } from './diagnostics.ts';
 import { parseMarkdown } from './markdown.ts';
 
@@ -57,34 +57,46 @@ function position(value: unknown, path: string): Position {
   fields(value, ['x', 'y'], path);
   for (const axis of ['x', 'y']) {
     if (typeof value[axis] !== 'number' || !Number.isFinite(value[axis]) || value[axis] < 0) {
-      fail('INVALID_POSITION', `${path}.${axis}`, '坐标必须是大于或等于零的有限数字。', '为架构节点声明 position: { x, y }；分区内坐标相对所属 partition 的内容区域。');
+      fail('INVALID_POSITION', `${path}.${axis}`, '坐标必须是大于或等于零的有限数字。', '声明 position: { x, y }；坐标原点由当前图表的布局规则定义。');
     }
   }
   return { x: value.x as number, y: value.y as number };
 }
 
-function size(value: unknown, path: string): Size {
-  fields(value, ['width', 'height'], path);
-  for (const dimension of ['width', 'height']) {
-    if (typeof value[dimension] !== 'number' || !Number.isFinite(value[dimension]) || value[dimension] <= 0) {
-      fail('INVALID_SIZE', `${path}.${dimension}`, '尺寸必须是大于零的有限数字。', '为节点或分区声明 size: { width, height }，系统会检查内容是否放得下。');
-    }
+function dimension(value: unknown, path: string): number {
+  if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) {
+    fail('INVALID_SIZE', path, '尺寸必须是大于零的有限数字。', '声明正数尺寸，系统会检查内容是否放得下。');
   }
-  return { width: value.width as number, height: value.height as number };
+  return value;
 }
 
-function declarations(nodes: unknown, path: string, positioned: true): ArchitectureNode<Entity, Role>[];
-function declarations(nodes: unknown, path: string, positioned: false): Participant<Entity, Role>[];
-function declarations(nodes: unknown, path: string, positioned: boolean): (Participant<Entity, Role> | ArchitectureNode<Entity, Role>)[] {
+function size(value: unknown, path: string): Size {
+  fields(value, ['width', 'height'], path);
+  return { width: dimension(value.width, `${path}.width`), height: dimension(value.height, `${path}.height`) };
+}
+
+function normalizeAppearance(node: Record<string, unknown>, path: string): Participant<Entity, Role> {
+  return { entity: normalizeEntity(node.entity), role: normalizeRole(node.role), size: size(node.size, `${path}.size`) };
+}
+
+function participants(nodes: unknown, path: string): Participant<Entity, Role>[] {
   return array(nodes, path).map((node, i) => {
     const p = `${path}[${i}]`;
-    fields(node, positioned ? ['entity', 'role', 'partition', 'position', 'size'] : ['entity', 'role', 'size'], p);
-    const result = { entity: normalizeEntity(node.entity), role: normalizeRole(node.role), size: size(node.size, `${p}.size`) };
-    return positioned ? { ...result, position: position(node.position, `${p}.position`), ...(node.partition === undefined ? {} : { partition: identifier(node.partition, `${p}.partition`) }) } : result;
+    fields(node, ['entity', 'role', 'size'], p);
+    return normalizeAppearance(node, p);
   });
 }
 
-function partitions(values: unknown, path: string): Partition[] {
+function architectureNodes(nodes: unknown, path: string): ArchitectureNode<Entity, Role>[] {
+  return array(nodes, path).map((node, i) => {
+    const p = `${path}[${i}]`;
+    fields(node, ['entity', 'role', 'partition', 'position', 'size'], p);
+    return { ...normalizeAppearance(node, p), position: position(node.position, `${p}.position`),
+      ...(node.partition === undefined ? {} : { partition: identifier(node.partition, `${p}.partition`) }) };
+  });
+}
+
+function architecturePartitions(values: unknown, path: string): ArchitecturePartition[] {
   return array(values, path, { empty: true }).map((value, i) => {
     const p = `${path}[${i}]`;
     fields(value, ['id', 'label', 'position', 'size'], p);
@@ -127,15 +139,35 @@ export function architecture(options: ArchitectureOptions): ArchitectureChart<En
     kind: 'architecture',
     id: identifier(options.id, 'architecture.id'),
     title: string(options.title, 'architecture.title'),
-    nodes: declarations(options.nodes, 'architecture.nodes', true),
-    partitions: partitions(options.partitions ?? [], 'architecture.partitions'),
+    nodes: architectureNodes(options.nodes, 'architecture.nodes'),
+    partitions: architecturePartitions(options.partitions ?? [], 'architecture.partitions'),
     relations: edges(options.relations, 'architecture.relations')
   });
 }
 
 export function sequence(options: SequenceOptions): SequenceChart<Entity, Role> {
   fields(options, ['id', 'title', 'participants', 'steps'], 'sequence');
-  return diagram({ kind: 'sequence', id: identifier(options.id, 'sequence.id'), title: string(options.title, 'sequence.title'), participants: declarations(options.participants, 'sequence.participants', false), steps: steps(options.steps, 'sequence.steps') });
+  return diagram({ kind: 'sequence', id: identifier(options.id, 'sequence.id'), title: string(options.title, 'sequence.title'), participants: participants(options.participants, 'sequence.participants'), steps: steps(options.steps, 'sequence.steps') });
+}
+
+export function swimlane(options: SwimlaneOptions): SwimlaneChart<Entity, Role> {
+  fields(options, ['id', 'title', 'width', 'headerWidth', 'lanes', 'nodes', 'relations'], 'swimlane');
+  return diagram({
+    kind: 'swimlane', id: identifier(options.id, 'swimlane.id'), title: string(options.title, 'swimlane.title'),
+    width: dimension(options.width, 'swimlane.width'),
+    headerWidth: dimension(options.headerWidth === undefined ? 144 : options.headerWidth, 'swimlane.headerWidth'),
+    lanes: array(options.lanes, 'swimlane.lanes').map((lane, i) => {
+      const p = `swimlane.lanes[${i}]`;
+      fields(lane, ['id', 'label', 'height'], p);
+      return { id: identifier(lane.id, `${p}.id`), label: shortText(lane.label, `${p}.label`, 48), height: dimension(lane.height, `${p}.height`) };
+    }),
+    nodes: array(options.nodes, 'swimlane.nodes').map((node, i) => {
+      const p = `swimlane.nodes[${i}]`;
+      fields(node, ['entity', 'role', 'lane', 'position', 'size'], p);
+      return { ...normalizeAppearance(node, p), lane: identifier(node.lane, `${p}.lane`), position: position(node.position, `${p}.position`) };
+    }),
+    relations: edges(options.relations, 'swimlane.relations')
+  });
 }
 
 export class Document {
@@ -145,7 +177,7 @@ export class Document {
     return new Document([...this.#blocks, { kind: 'markdown', content: parseMarkdown(source, `blocks[${this.#blocks.length}].markdown`) }]);
   }
   diagram(value: Diagram) {
-    if (!diagrams.has(value)) fail('INVALID_DIAGRAM', 'document.diagram', '需要 SDK 创建的图表。', '使用 architecture 或 sequence。');
+    if (!diagrams.has(value)) fail('INVALID_DIAGRAM', 'document.diagram', '需要 SDK 创建的图表。', '使用 architecture、sequence 或 swimlane。');
     return new Document([...this.#blocks, { kind: 'diagram', content: structuredClone(value) }]);
   }
   toJSON(): SemanticDocument {
@@ -165,6 +197,9 @@ export class Document {
       };
       if (chart.kind === 'sequence') {
         return { kind: 'diagram', content: { ...chart, participants: chart.participants.map(appearance) } };
+      }
+      if (chart.kind === 'swimlane') {
+        return { kind: 'diagram', content: { ...chart, nodes: chart.nodes.map(node => ({ ...appearance(node), position: node.position, lane: node.lane })) } };
       }
       return { kind: 'diagram', content: { ...chart, nodes: chart.nodes.map(node => ({ ...appearance(node), position: node.position,
         ...(node.partition ? { partition: node.partition } : {}) })) } };

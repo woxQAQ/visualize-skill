@@ -4,6 +4,7 @@ import { context } from './design.ts';
 import { plainText } from './markdown.ts';
 import { layoutArchitecture } from './layout/architecture.ts';
 import { layoutSequence } from './layout/sequence.ts';
+import { layoutSwimlane } from './layout/swimlane.ts';
 import { validate } from './validate.ts';
 import { isDocument } from './sdk.ts';
 import { fail } from './diagnostics.ts';
@@ -22,13 +23,15 @@ function entityNotes(semantic: SemanticDocument) {
   const notes = semantic.entities.map(entity => {
     const locations: string[] = [];
     const appearances = charts.flatMap(chart => {
-      const node = (chart.kind === 'architecture' ? chart.nodes : chart.participants).find(node => node.entity === entity.id);
+      const node = (chart.kind === 'sequence' ? chart.participants : chart.nodes).find(node => node.entity === entity.id);
       if (!node) return [];
       const target = `entity-${chart.id}-${entity.id}`;
       locations.push(`<li data-location-chart="${chart.id}"><a href="#${target}" data-locate-node="${target}">在「${escape(chart.title)}」中定位此节点</a></li>`);
       const partitionId = chart.kind === 'architecture' ? chart.nodes.find(item => item.entity === entity.id)?.partition : undefined;
       const partition = chart.kind === 'architecture' ? chart.partitions.find(item => item.id === partitionId) : undefined;
-      const related = (chart.kind === 'architecture' ? chart.relations : calls(chart.steps))
+      const laneId = chart.kind === 'swimlane' ? chart.nodes.find(item => item.entity === entity.id)?.lane : undefined;
+      const lane = chart.kind === 'swimlane' ? chart.lanes.find(item => item.id === laneId) : undefined;
+      const related = (chart.kind === 'sequence' ? calls(chart.steps) : chart.relations)
         .filter(relation => relation.from === entity.id || relation.to === entity.id);
       const rows = related.map(relation => {
         const outgoing = relation.from === entity.id;
@@ -40,7 +43,8 @@ function entityNotes(semantic: SemanticDocument) {
         chartId: chart.id,
         title: chart.title,
         role: roles.get(node.role)!,
-        partition: partition ? `<div><dt>所属分区</dt><dd>${escape(partition.label)}</dd></div>` : '',
+        membership: partition ? `<div><dt>所属分区</dt><dd>${escape(partition.label)}</dd></div>`
+          : lane ? `<div><dt>所属泳道</dt><dd>${escape(lane.label)}</dd></div>` : '',
         relations: rows ? renderTemplate('entity-relations', { rows }) : '',
       })];
     });
@@ -64,7 +68,13 @@ export function compile(document: Document) {
   const semantic = validate(document.toJSON());
   const ctx = context(semantic);
   const scenes = semantic.blocks.filter(block => block.kind === 'diagram')
-    .map(block => block.content.kind === 'architecture' ? layoutArchitecture(block.content, ctx) : layoutSequence(block.content, ctx));
+    .map(({ content }) => {
+      switch (content.kind) {
+        case 'architecture': return layoutArchitecture(content, ctx);
+        case 'sequence': return layoutSequence(content, ctx);
+        case 'swimlane': return layoutSwimlane(content, ctx);
+      }
+    });
   return { semantic, scenes };
 }
 
@@ -82,7 +92,7 @@ export function render(document: Document) {
   const content = semantic.blocks.map(block => {
     if (block.kind === 'markdown') return `<section class="prose">${renderMarkdown(block.content, nextHeading)}</section>`;
     const chart = block.content;
-    const roleIds = new Set((chart.kind === 'architecture' ? chart.nodes : chart.participants).map(node => node.role));
+    const roleIds = new Set((chart.kind === 'sequence' ? chart.participants : chart.nodes).map(node => node.role));
     const legend = semantic.roles.filter(role => roleIds.has(role.id)).map(role => {
       const color = ctx.colors.get(role.id)!;
       return `<span><i aria-hidden="true" style="--role-color:${color.ink};--role-fill:${color.fill}"></i>${escape(role.label)}</span>`;
