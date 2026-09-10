@@ -1,6 +1,6 @@
 // Compile-only checks: invalid declarations must fail before rendering.
-import { architecture, document, entity, role, sequence } from '@visualize/semantic';
-import type { SemanticDocument, Step } from '@visualize/semantic';
+import { architecture, document, entity, role, sequence } from '../src/index.ts';
+import type { SemanticDocument, Step } from '../src/index.ts';
 
 const item = entity({ id: 'item', label: '对象', tags: [{ id: 'public', label: '公开' }] });
 const worker = role({ id: 'worker', label: '处理者' });

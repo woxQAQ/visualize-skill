@@ -1,9 +1,9 @@
-import type { Diagnostic, AddDiagnostic } from './diagnostics.js';
-import type { Relation, SemanticDocument } from './model.js';
-import { DiagnosticError } from './diagnostics.js';
-import { links } from './markdown.js';
-import { theme } from './design.js';
-import { validateSequence } from './validate-sequence.js';
+import type { Diagnostic, AddDiagnostic } from './diagnostics.ts';
+import type { Relation, SemanticDocument } from './model.ts';
+import { DiagnosticError } from './diagnostics.ts';
+import { links } from './markdown.ts';
+import { theme } from './design.ts';
+import { validateSequence } from './validate-sequence.ts';
 
 export function validate(doc: SemanticDocument): SemanticDocument {
   const diagnostics: Diagnostic[] = [];

@@ -1,5 +1,5 @@
-import { escape } from './markup.js';
-import type { Inline, MarkdownBlock } from './model.js';
+import { escape } from './markup.ts';
+import type { Inline, MarkdownBlock } from './model.ts';
 
 function inline(nodes: readonly Inline[]): string {
   return nodes.map(node => {
@@ -30,6 +30,13 @@ export function renderMarkdown(blocks: readonly MarkdownBlock[], nextHeading: ()
       case 'codeBlock': return `<pre><code${block.language ? ` data-language="${escape(block.language)}"` : ''}>${escape(block.text)}</code></pre>`;
       case 'thematicBreak': return '<hr>';
       case 'blockquote': return `<blockquote>${renderMarkdown(block.children, nextHeading)}</blockquote>`;
+      case 'table': {
+        const cells = (row: readonly (readonly Inline[])[], tag: 'th' | 'td') => row.map((cell, column) => {
+          const align = block.align[column];
+          return `<${tag}${tag === 'th' ? ' scope="col"' : ''}${align ? ` style="text-align:${align}"` : ''}>${inline(cell)}</${tag}>`;
+        }).join('');
+        return `<div class="table-scroll" tabindex="0" role="region" aria-label="表格，可横向滚动"><table class="markdown-table"><thead><tr>${cells(block.header, 'th')}</tr></thead><tbody>${block.rows.map(row => `<tr>${cells(row, 'td')}</tr>`).join('')}</tbody></table></div>`;
+      }
       case 'list': {
         const tag = block.ordered ? 'ol' : 'ul';
         return `<${tag}${block.ordered ? ` start="${block.start}"` : ''}>${block.items.map(item => `<li>${renderMarkdown(item, nextHeading, block.tight)}</li>`).join('')}</${tag}>`;

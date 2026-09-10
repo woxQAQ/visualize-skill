@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { renderTemplate } from '../dist/templates.js';
+import { renderTemplate } from '../src/templates.ts';
 
 test('templates escape text slots and insert generated markup without interpreting it again', () => {
   const html = renderTemplate('figure', {

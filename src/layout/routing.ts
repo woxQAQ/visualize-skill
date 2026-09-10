@@ -1,7 +1,7 @@
-import type { ArchitectureChart, EdgeLayout, NodeLayout, PartitionLayout, Point, Position, Rect, TextLayout } from '../model.js';
-import { fail } from '../diagnostics.js';
-import { wrap } from '../design.js';
-import { path } from './common.js';
+import type { ArchitectureChart, EdgeLayout, NodeLayout, PartitionLayout, Point, Position, Rect, TextLayout } from '../model.ts';
+import { fail } from '../diagnostics.ts';
+import { wrap } from '../design.ts';
+import { path } from './common.ts';
 
 export function overlaps(a: Rect, b: Rect, gap = 0) {
   return a.x < b.x + b.width + gap && a.x + a.width + gap > b.x

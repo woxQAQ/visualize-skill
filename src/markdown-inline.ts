@@ -1,5 +1,5 @@
-import { fail } from './diagnostics.js';
-import type { Inline } from './model.js';
+import { fail } from './diagnostics.ts';
+import type { Inline } from './model.ts';
 
 export interface LinkTarget { href: string; title?: string }
 export interface SourceLine { text: string; number: number }

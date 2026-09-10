@@ -15,12 +15,14 @@
     ],
     "types": [
       "node"
-    ]
+    ],
+    "allowJs": true,
+    "checkJs": true
   },
   "include": [
     "src/**/*.ts",
     "examples/**/*.ts",
     "test/**/*.ts",
-    "scripts/**/*.ts"
+    "src/templates/*.js"
   ]
 }

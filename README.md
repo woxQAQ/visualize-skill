@@ -1,98 +1,30 @@
 # visualize-skills
 
-为 AI 提供声明式 TypeScript SDK 和操作手册。内容脚本声明报告 Markdown、对象标签、关系、节点与逻辑分区的位置和尺寸；系统生成风格一致、可以离线交互阅读的 HTML。
+将架构、依赖和同步调用声明成 TypeScript，生成可离线交互阅读的 HTML。Skill 手册、源码、模板与参考文档一起使用。
 
-## 运行
+## 使用
 
-需要 Node.js 22.18 或更新版本。SDK 分发编译后的 JavaScript 与 TypeScript 类型声明；用户的内容脚本可使用 TypeScript。运行时没有第三方包依赖，Markdown 由项目内的 TypeScript 解析器处理。TypeScript 和 Node 类型声明只用于开发检查，使用分发包时无需安装。
+需要 Node.js 22.18+。直接运行源码，无需安装依赖或构建：
+
+```sh
+node src/cli.ts examples/self-explanation.ts -o output/self-explanation.html
+```
+
+在自己的目录编写内容脚本时，从 Skill 的 `src/index.ts` 导入接口，相对导入路径以内容脚本所在目录为基准，再用同一个 `src/cli.ts` 生成 HTML。具体步骤见 [Skill 手册](SKILL.md)，接口见 [API 索引](references/api.md)。
+
+分发时复制完整目录，保留 `SKILL.md`、`package.json`、`src/`、`references/` 和 `examples/`。`package.json` 声明 ES module；其中的开发依赖不影响直接运行。
+
+## 开发
+
+开发环境由 `devenv.nix` 和 `devenv.yaml` 管理，使用 `devenv shell` 进入。只有类型检查需要安装开发依赖：
 
 ```sh
 pnpm install --frozen-lockfile
-pnpm example
-pnpm example:single
 pnpm test
 ```
 
-`pnpm example` 生成 `output/self-explanation.html`，用架构图和带执行条的时序图解释系统自身；`pnpm example:single` 复用架构图，生成 `output/architecture.html`。两份产物都可点击节点查看详情，直接在浏览器中打开文件即可。
+`pnpm test` 先执行严格类型检查，再运行测试。源码、示例和测试均参与检查，`test/contracts.ts` 包含类型约束的反例。分发测试将 Skill 复制到没有依赖和构建产物的临时目录，验证直接运行及外部内容脚本。
 
-`pnpm test` 先执行 TypeScript 构建和严格检查，再运行测试。`src/`、示例和测试均参与检查；`test/contracts.ts` 检查缺少尺寸、错误属性和修改只读数据等声明在编译时被拒绝。Node 运行 TypeScript 时只移除类型，不进行类型检查。
+`pnpm example` 生成系统自我解释报告，`pnpm example:single` 生成单张架构图。HTML 直接在浏览器中打开。
 
-开发环境由 `devenv.nix` 和 `devenv.yaml` 声明，使用 `devenv shell` 进入。不要通过 Homebrew 手动安装依赖。
-
-## 分发与使用
-
-分发包包含已构建的 SDK、HTML/CSS/JS 模板、Skill 手册和示例，运行时只需要 Node.js。SDK 名称中的 `semantic` 表示作者声明对象和关系的语义，外观由 SDK 生成。
-
-当前尚未发布到 npm。可先构建本地分发包：
-
-```sh
-pnpm pack --pack-destination output
-```
-
-把生成的 `visualize-semantic-0.1.0.tgz` 交给使用者。解压得到完整 Skill 目录后，无需 `pnpm install` 即可运行包内示例：
-
-```sh
-tar -xzf visualize-semantic-0.1.0.tgz
-node package/dist/cli.js package/examples/self-explanation.ts -o report.html
-```
-
-用户在自己的目录编写内容脚本时，可从已解压 Skill 的绝对路径导入 `dist/index.js`，再用 `node /实际路径/package/dist/cli.js <脚本.ts> -o <产物.html>` 运行。只复制 `SKILL.md` 不够，需一起分发构建产物、模板和参考文档。
-
-也可以在内容项目中安装本地包，继续使用 `@visualize/semantic` 和 `pnpm exec visualize`：
-
-```sh
-pnpm add /实际路径/visualize-semantic-0.1.0.tgz
-```
-
-包内包含 `dist/` 下的 JavaScript、`.d.ts` 类型声明、Skill 手册和示例。示例 `.ts` 用于阅读或复制到用户项目；不在 `node_modules` 内直接运行。`exports` 只开放包入口，`src/` 不进入分发包。
-
-## 内容写法
-
-```ts
-import { document, entity, role, architecture } from '@visualize/semantic';
-
-const processor = role({ id: 'processor', label: '业务处理' });
-const api = entity({
-  id: 'api', label: 'API 服务', description: '接收业务请求',
-  tags: [{ id: 'public-api', label: '公开接口' }]
-});
-const orders = entity({ id: 'orders', label: '订单模块', tags: [{ id: 'domain-module', label: '业务模块' }] });
-
-const chart = architecture({
-  id: 'order-system',
-  title: '订单系统的组件与依赖',
-  nodes: [
-    { entity: api, role: processor, position: { x: 0, y: 0 }, size: { width: 220, height: 88 } },
-    { entity: orders, role: processor, position: { x: 360, y: 0 }, size: { width: 220, height: 88 } }
-  ],
-  relations: [{ id: 'submit-order', from: api, to: orders, label: '提交订单' }]
-});
-
-export default document()
-  .markdown('# 订单系统\n\n点击节点查看标签、角色和关系。')
-  .diagram(chart);
-```
-
-把脚本保存在安装了该包的项目中，例如 `report.ts`，然后运行：
-
-```sh
-pnpm exec visualize report.ts --check
-pnpm exec visualize report.ts -o output/report.html
-```
-
-`label` 是显示名称，`tags` 是分类标签。详情面板展示这些标签，以及当前图中的角色、所属分区和关系。点击关联节点会关闭面板，在当前图中定位并高亮目标节点；跨图定位会在指定图中定位同一节点。面板不接受 Markdown 正文或任意属性字典。架构节点与时序参与者都必须声明 `size: { width, height }`；文字或分区内节点放不下时返回诊断，不自动放大。
-
-`partition` 表示逻辑分区，声明在架构图的 `partitions` 中；节点用 `partition` 字段引用所属分区。它显示为虚线框，不进入实体列表，不承担角色或参与连线。完整写法见 [架构图 API](references/api.md#架构图与逻辑分区)。
-
-去掉 `.markdown()` 即得到单图，没有模式开关。链式调用返回新文档，支持从同一个基础文档派生不同报告。
-
-## 入口
-
-- [Skill 操作手册](SKILL.md)：给 AI 的内容组织与生成流程。
-- [SDK 接口](references/api.md)：图表语义、Markdown 内容边界、诊断与容量边界。
-- [架构说明](docs/architecture.md)：模块责任、内部数据与确定性范围。
-- [自我解释示例](examples/self-explanation.ts)：架构与时序共享身份和标签，并组合成报告。
-
-`src/templates/` 保存页面和节点资料的 HTML 模板、`report.css` 与 `interactions.ts`。浏览器脚本编译成独立 JS；模板随包分发，在渲染时内嵌进单文件报告。
-
-`pnpm build` 生成 SDK、类型声明和模板资源，`pnpm typecheck` 随后检查示例和测试。打包前会自动运行这两步。分发测试既检查独立安装后的包名导入、类型约束和 CLI，也验证直接解压分发包后，在没有 `node_modules` 的目录仅用 Node 运行示例。Skill 手册随包分发，尚未注册到全局 Skill 目录。
+HTML、CSS 和交互模板位于 `src/templates/`。交互使用浏览器可直接执行的 JavaScript，以 JSDoc 标注类型并参与严格检查；渲染时原样内嵌，不生成中间文件。模块关系与设计取舍见 [架构说明](docs/architecture.md)。

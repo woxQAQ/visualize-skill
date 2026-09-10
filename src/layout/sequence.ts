@@ -1,9 +1,9 @@
-import type { Activation, Call, Fragment, LayoutContext, Point, SequenceChart, SequenceEdgeLayout, SequenceScene, Step } from '../model.js';
+import type { Activation, Call, Fragment, LayoutContext, Point, SequenceChart, SequenceEdgeLayout, SequenceScene, Step } from '../model.ts';
 
 interface Execution { call: Call; activation: Activation }
-import { wrap } from '../design.js';
-import { nodeBox, finish, path } from './common.js';
-import { fail } from '../diagnostics.js';
+import { wrap } from '../design.ts';
+import { nodeBox, finish, path } from './common.ts';
+import { fail } from '../diagnostics.ts';
 
 export function layoutSequence(chart: SequenceChart, ctx: LayoutContext): SequenceScene {
   let nextX = 32;

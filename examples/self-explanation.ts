@@ -1,4 +1,4 @@
-import { document, entity, role, architecture, sequence } from '@visualize/semantic';
+import { document, entity, role, architecture, sequence } from '../src/index.ts';
 
 const guidance = role({ id: 'guidance', label: '内容指导' });
 const declaration = role({ id: 'declaration', label: '语义声明' });
@@ -109,9 +109,11 @@ export default document()
   .markdown(`
 ## 声明与呈现各自负责什么
 
-- AI 声明事实、关系、标签、节点与分区的宽高和架构图的 x、y 坐标。
-- 系统检查声明的尺寸，统一控制颜色、字体、连线和属性展示。
-- 程序检查节点重叠、关系标签和调用生命周期，不静默改写内容。
+| 负责方 | 内容 |
+| --- | --- |
+| 内容脚本 | 声明事实、关系、标签、节点与分区的宽高和架构位置。 |
+| [语义检查](entity:validator)与[图表布局](entity:layout) | 检查尺寸、节点重叠、关系标签和调用生命周期，不静默改写内容。 |
+| [HTML 渲染](entity:renderer) | 统一控制颜色、字体、连线和属性展示。 |
 
 [架构图](diagram:system-architecture) 也可以独立输出，保留相同的节点详情和交互。
   `);

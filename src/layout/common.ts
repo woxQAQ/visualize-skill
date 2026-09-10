@@ -1,6 +1,6 @@
-import type { LayoutContext, NodeLayout, Participant, Point, Scene } from '../model.js';
-import { theme, wrap } from '../design.js';
-import { fail } from '../diagnostics.js';
+import type { LayoutContext, NodeLayout, Participant, Point, Scene } from '../model.ts';
+import { theme, wrap } from '../design.ts';
+import { fail } from '../diagnostics.ts';
 
 export function nodeBox(node: Participant, ctx: LayoutContext, x: number, y: number, { description = true } = {}): NodeLayout {
   const entity = ctx.entities.get(node.entity)!;

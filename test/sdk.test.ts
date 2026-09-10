@@ -1,10 +1,10 @@
-import type { ArchitectureOptions, EntityInput, Partition, StepInput } from '@visualize/semantic';
+import type { ArchitectureOptions, EntityInput, Partition, StepInput } from '../src/index.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as sdk from '@visualize/semantic';
-import { document, entity, role, architecture, sequence, compile, render, DiagnosticError } from '@visualize/semantic';
+import * as sdk from '../src/index.ts';
+import { document, entity, role, architecture, sequence, compile, render, DiagnosticError } from '../src/index.ts';
 import report, { overview, generation } from '../examples/self-explanation.ts';
-import { wrap, measure } from '../dist/design.js';
+import { wrap, measure } from '../src/design.ts';
 
 const worker = role({ id: 'worker', label: '处理者' });
 const a = entity({ id: 'a', label: '服务 A' });

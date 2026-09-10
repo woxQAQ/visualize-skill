@@ -1,6 +1,6 @@
-import type { Chart, LayoutContext, NodeLayout, Scene, TextLayout } from './model.js';
-import { theme, measure } from './design.js';
-import { escape, number } from './markup.js';
+import type { Chart, LayoutContext, NodeLayout, Scene, TextLayout } from './model.ts';
+import { theme, measure } from './design.ts';
+import { escape, number } from './markup.ts';
 
 function textBlock(block: TextLayout, x: number, y: number, { fill = theme.ink, weight = 400 } = {}) {
   return block.lines.map((line, index) => `

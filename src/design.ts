@@ -1,5 +1,5 @@
-import type { LayoutContext, SemanticDocument, TextLayout } from './model.js';
-import { freeze, fail } from './diagnostics.js';
+import type { LayoutContext, SemanticDocument, TextLayout } from './model.ts';
+import { freeze, fail } from './diagnostics.ts';
 
 export const theme = freeze({
   ink: '#252b30', muted: '#5b646c', line: '#707983', border: '#c6ccd0',

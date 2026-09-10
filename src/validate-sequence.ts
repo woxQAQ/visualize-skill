@@ -1,5 +1,5 @@
-import type { AddDiagnostic } from './diagnostics.js';
-import type { Call, Relation, Return, SequenceChart, Step } from './model.js';
+import type { AddDiagnostic } from './diagnostics.ts';
+import type { Call, Relation, Return, SequenceChart, Step } from './model.ts';
 export function validateSequence(chart: SequenceChart, path: string, add: AddDiagnostic, relation: (value: Relation) => void): void {
   let messageCount = 0;
   const stepIds = new Set();

@@ -1,8 +1,8 @@
-import type { ArchitectureChart, ArchitectureScene, LayoutContext, PartitionLayout } from '../model.js';
-import { fail } from '../diagnostics.js';
-import { wrap } from '../design.js';
-import { nodeBox, finish } from './common.js';
-import { routeRelations, overlaps } from './routing.js';
+import type { ArchitectureChart, ArchitectureScene, LayoutContext, PartitionLayout } from '../model.ts';
+import { fail } from '../diagnostics.ts';
+import { wrap } from '../design.ts';
+import { nodeBox, finish } from './common.ts';
+import { routeRelations, overlaps } from './routing.ts';
 
 const margin = 32;
 const padding = 24;

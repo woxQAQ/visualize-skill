@@ -1,16 +1,16 @@
-import type { Call, SemanticDocument, Step } from './model.js';
-import type { Document } from './sdk.js';
-import { context } from './design.js';
-import { plainText } from './markdown.js';
-import { layoutArchitecture } from './layout/architecture.js';
-import { layoutSequence } from './layout/sequence.js';
-import { validate } from './validate.js';
-import { isDocument } from './sdk.js';
-import { fail } from './diagnostics.js';
-import { escape } from './markup.js';
-import { renderMarkdown } from './render-markdown.js';
-import { renderSvg } from './render-svg.js';
-import { interactionScript, renderTemplate, stylesheet } from './templates.js';
+import type { Call, SemanticDocument, Step } from './model.ts';
+import type { Document } from './sdk.ts';
+import { context } from './design.ts';
+import { plainText } from './markdown.ts';
+import { layoutArchitecture } from './layout/architecture.ts';
+import { layoutSequence } from './layout/sequence.ts';
+import { validate } from './validate.ts';
+import { isDocument } from './sdk.ts';
+import { fail } from './diagnostics.ts';
+import { escape } from './markup.ts';
+import { renderMarkdown } from './render-markdown.ts';
+import { renderSvg } from './render-svg.ts';
+import { interactionScript, renderTemplate, stylesheet } from './templates.ts';
 
 function entityNotes(semantic: SemanticDocument) {
   const roles = new Map(semantic.roles.map(role => [role.id, role.label]));

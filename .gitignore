@@ -3,5 +3,3 @@ output/
 .devenv/
 .direnv/
 result
-dist/
-*.tgz

@@ -1,6 +1,6 @@
-import type { ArchitectureChart, ArchitectureNode, ArchitectureOptions, Block, Diagram, Entity, EntityInput, Participant, Partition, Position, Role, SemanticDocument, SequenceChart, SequenceOptions, Size, Step, Tag } from './model.js';
-import { array, fail, fields, freeze, identifier, string } from './diagnostics.js';
-import { parseMarkdown } from './markdown.js';
+import type { ArchitectureChart, ArchitectureNode, ArchitectureOptions, Block, Diagram, Entity, EntityInput, Participant, Partition, Position, Role, SemanticDocument, SequenceChart, SequenceOptions, Size, Step, Tag } from './model.ts';
+import { array, fail, fields, freeze, identifier, string } from './diagnostics.ts';
+import { parseMarkdown } from './markdown.ts';
 
 const diagrams = new WeakSet<object>();
 function diagram<T extends Diagram>(value: T): T { freeze(value); diagrams.add(value); return value; }

@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs';
-import { escape } from './markup.js';
+import { escape } from './markup.ts';
 
 type TemplateName = 'document' | 'dialog' | 'figure' | 'entity' | 'entity-context'
   | 'entity-relations' | 'entity-locations' | 'entity-tags' | 'entity-notes';

@@ -1,11 +1,12 @@
-import { fail, string } from './diagnostics.js';
-import type { Inline, MarkdownBlock } from './model.js';
-import { linkTarget, parseInline, referenceId } from './markdown-inline.js';
-import type { LinkTarget, SourceLine } from './markdown-inline.js';
+import { fail, string } from './diagnostics.ts';
+import type { Inline, MarkdownBlock, TableAlignment } from './model.ts';
+import { linkTarget, parseInline, referenceId } from './markdown-inline.ts';
+import type { LinkTarget, SourceLine } from './markdown-inline.ts';
 
 type Draft =
   | { kind: 'paragraph' | 'heading'; lines: SourceLine[]; level: number }
   | { kind: 'codeBlock'; text: string; language: string }
+  | { kind: 'table'; align: TableAlignment[]; header: SourceLine[]; rows: SourceLine[][] }
   | { kind: 'thematicBreak' }
   | { kind: 'blockquote'; children: Draft[] }
   | { kind: 'list'; ordered: boolean; start: number; tight: boolean; items: Draft[][] };
@@ -21,6 +22,35 @@ function listMarker(text: string) {
   return { ordered: /^\d/.test(match[2]), start: /^\d/.test(match[2]) ? parseInt(match[2], 10) : 1,
     marker: match[2].slice(-1), indent: match[1].length,
     contentIndent: match[1].length + match[2].length + (match[3].length || 1), text: match[4] };
+}
+
+// Only unescaped pipes separate cells, including inside inline code.
+function tableCells(text: string): string[] | null {
+  const source = text.trim();
+  const cells: string[] = [];
+  let cell = '';
+  for (let i = 0; i < source.length; i++) {
+    if (source[i] === '\\' && i + 1 < source.length) {
+      cell += source[i + 1] === '|' ? source[++i] : source[i] + source[++i];
+    } else if (source[i] === '|') {
+      cells.push(cell.trim()); cell = '';
+    } else cell += source[i];
+  }
+  if (!cells.length) return null;
+  cells.push(cell.trim());
+  if (source.startsWith('|')) cells.shift();
+  if (cells.at(-1) === '') cells.pop();
+  return cells;
+}
+
+function tableHeader(rows: readonly SourceLine[], index: number) {
+  const header = tableCells(rows[index].text);
+  const separators = rows[index + 1] && tableCells(rows[index + 1].text);
+  if (!header?.length || !separators || header.length !== separators.length
+    || !separators.every(cell => /^:?-{3,}:?$/.test(cell))) return null;
+  const align: TableAlignment[] = separators.map(cell => cell.startsWith(':')
+    ? cell.endsWith(':') ? 'center' : 'left' : cell.endsWith(':') ? 'right' : null);
+  return { header: header.map(text => ({ ...rows[index], text })), align };
 }
 
 // Blocks retain source lines until definitions are collected, so references can
@@ -108,13 +138,25 @@ export function parseMarkdown(source: string, sourcePath = 'markdown'): readonly
         }
         result.push({ kind: 'list', ordered: first.ordered, start: first.start, tight, items }); continue;
       }
+      const table = tableHeader(rows, i);
+      if (table) {
+        const body: SourceLine[][] = [];
+        i += 2;
+        while (i < rows.length && rows[i].text.trim() && !startsBlock(rows[i].text)) {
+          const cells = tableCells(rows[i].text);
+          if (!cells) break;
+          body.push(table.header.map((_, column) => ({ ...rows[i], text: cells[column] ?? '' })));
+          i++;
+        }
+        result.push({ kind: 'table', ...table, rows: body }); continue;
+      }
       const content: SourceLine[] = [row];
       i++;
       let level = 0;
       while (i < rows.length && rows[i].text.trim()) {
         const underline = setext(rows[i].text);
         if (underline) { level = underline[1][0] === '=' ? 1 : 2; i++; break; }
-        if (startsBlock(rows[i].text)) break;
+        if (startsBlock(rows[i].text) || tableHeader(rows, i)) break;
         content.push(rows[i++]);
       }
       result.push({ kind: level ? 'heading' : 'paragraph', level, lines: content });
@@ -127,6 +169,8 @@ export function parseMarkdown(source: string, sourcePath = 'markdown'): readonly
       case 'heading': return { kind: 'heading', level: block.level, children: parseInline(block.lines, definitions, sourcePath) };
       case 'blockquote': return { kind: 'blockquote', children: resolve(block.children) };
       case 'list': return { ...block, items: block.items.map(resolve) };
+      case 'table': return { ...block, header: block.header.map(cell => parseInline([cell], definitions, sourcePath)),
+        rows: block.rows.map(row => row.map(cell => parseInline([cell], definitions, sourcePath))) };
       default: return block;
     }
   });
@@ -149,6 +193,7 @@ export function links(blocks: readonly MarkdownBlock[]): string[] {
     for (const node of nodes) {
       if (node.kind === 'blockquote') visit(node.children);
       else if (node.kind === 'list') node.items.forEach(visit);
+      else if (node.kind === 'table') { node.header.forEach(visitInline); node.rows.forEach(row => row.forEach(visitInline)); }
       else if ('children' in node) visitInline(node.children);
     }
   };

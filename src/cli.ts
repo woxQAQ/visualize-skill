@@ -4,15 +4,15 @@ import { dirname, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { parseArgs } from 'node:util';
 import { randomUUID } from 'node:crypto';
-import { compile, render, DiagnosticError } from './index.js';
-import { isDocument } from './sdk.js';
-import { fail } from './diagnostics.js';
+import { compile, render, DiagnosticError } from './index.ts';
+import { isDocument } from './sdk.ts';
+import { fail } from './diagnostics.ts';
 
 let temp: string | undefined;
 try {
   const { values, positionals } = parseArgs({ options: { output: { type: 'string', short: 'o' }, check: { type: 'boolean' }, help: { type: 'boolean', short: 'h' } }, allowPositionals: true });
   if (values.help) {
-    process.stdout.write('Usage: visualize <report.ts> [-o output.html] [--check]\nExecutes a local ES module. --check validates semantics and layout without writing HTML.\n');
+    process.stdout.write('Usage: node <skill>/src/cli.ts <report.ts> [-o output.html] [--check]\nExecutes a local ES module. --check validates semantics and layout without writing HTML.\n');
   } else {
     if (positionals.length !== 1 || (!values.check && !values.output)) throw new Error('需要一个 TypeScript 或 JavaScript 文件，以及 -o 输出路径或 --check。使用 --help 查看用法。');
     const input = resolve(positionals[0]);

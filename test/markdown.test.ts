@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { document, render, DiagnosticError } from '@visualize/semantic';
+import { document, render, DiagnosticError } from '../src/index.ts';
 const html = (source: string) => render(document().markdown(source));
 const diagnostic = (code: string, line?: number) => (error: unknown) => error instanceof DiagnosticError
   && error.diagnostics[0].code === code && (line === undefined || error.diagnostics[0].path === `blocks[0].markdown.line[${line}]`);
@@ -48,4 +48,44 @@ test('HTML and image diagnostics retain original lines through nested containers
 test('excessive block and emphasis nesting yields a diagnostic', () => {
   assert.throws(() => html('> '.repeat(34) + '内容'), diagnostic('MARKDOWN_DEPTH'));
   assert.throws(() => html('*'.repeat(68) + '内容' + '*'.repeat(68)), diagnostic('MARKDOWN_DEPTH'));
+});
+
+test('tables render aligned headers, inline formats, escaped pipes and uneven body rows', () => {
+  const output = html([
+    '名称 | 示例 | 数量',
+    ':--- | :---: | ---:',
+    '**字段** | `a\\|b` | 12',
+    '| 缺列 |',
+    '| 完整 | 值 | 3 | 忽略多列 |',
+    '', '后续段落',
+  ].join('\n'));
+  assert.match(output, /<th scope="col" style="text-align:left">名称<\/th>/);
+  assert.match(output, /<th scope="col" style="text-align:center">示例<\/th>/);
+  assert.match(output, /<th scope="col" style="text-align:right">数量<\/th>/);
+  assert.match(output, /<td style="text-align:left"><strong>字段<\/strong><\/td><td style="text-align:center"><code>a\|b<\/code><\/td>/);
+  assert.match(output, /<tr><td style="text-align:left">缺列<\/td><td style="text-align:center"><\/td><td style="text-align:right"><\/td><\/tr>/);
+  assert.doesNotMatch(output, /忽略多列/);
+  assert.match(output, /<p>后续段落<\/p>/);
+});
+
+test('tables coexist with paragraphs, code, headings and nested containers', () => {
+  const output = html('前文\n甲 | 乙\n--- | ---\n一 | 二\n后文\n\n> | 引用 |\n> | --- |\n> | 单元格 |\n\n- | 列表 |\n  | --- |\n  | 单元格 |\n\n```md\n甲 | 乙\n--- | ---\n```\n\n标题\n---');
+  assert.equal((output.match(/<table class="markdown-table">/g) ?? []).length, 3);
+  assert.match(output, /<p>前文<\/p>\n<div class="table-scroll"/);
+  assert.match(output, /<p>后文<\/p>/);
+  assert.match(output, /<blockquote><div class="table-scroll"/);
+  assert.match(output, /<li><div class="table-scroll"/);
+  assert.match(output, /<pre><code data-language="md">甲 \| 乙\n--- \| ---<\/code><\/pre>/);
+  assert.match(output, /<h2 id="heading-1">标题<\/h2>/);
+  assert.doesNotMatch(html('甲 | 乙\n| --- |'), /<table class="markdown-table">/);
+  assert.doesNotMatch(html('甲 | 乙\n-- | --'), /<table class="markdown-table">/);
+});
+
+test('table links use the shared reference and validation rules with source line diagnostics', () => {
+  const output = html('| [标题][doc] |\n| --- |\n| [内容][doc] |\n\n[doc]: https://example.com');
+  assert.equal((output.match(/href="https:\/\/example.com"/g) ?? []).length, 2);
+  assert.throws(() => html('| [未知](entity:missing) |\n| --- |'), diagnostic('UNKNOWN_REFERENCE'));
+  assert.throws(() => html('| 名称 |\n| --- |\n| [未知](diagram:missing) |'), diagnostic('UNKNOWN_REFERENCE'));
+  assert.throws(() => html('> | 名称 |\n> | --- |\n> | <script> |'), diagnostic('MARKDOWN_HTML', 3));
+  assert.throws(() => html('| 名称 |\n| --- |\n| [链接](javascript:bad) |'), diagnostic('MARKDOWN_LINK', 3));
 });

@@ -82,12 +82,14 @@ export type Inline =
   | { readonly kind: 'strong' | 'emphasis'; readonly children: readonly Inline[] }
   | { readonly kind: 'link'; readonly href: string; readonly title?: string; readonly children: readonly Inline[] }
   | { readonly kind: 'break' };
+export type TableAlignment = 'left' | 'center' | 'right' | null;
 export type MarkdownBlock =
   | { readonly kind: 'paragraph'; readonly children: readonly Inline[] }
   | { readonly kind: 'heading'; readonly level: number; readonly children: readonly Inline[] }
   | { readonly kind: 'codeBlock'; readonly language: string; readonly text: string }
   | { readonly kind: 'list'; readonly ordered: boolean; readonly start: number; readonly tight: boolean; readonly items: readonly (readonly MarkdownBlock[])[] }
   | { readonly kind: 'blockquote'; readonly children: readonly MarkdownBlock[] }
+  | { readonly kind: 'table'; readonly align: readonly TableAlignment[]; readonly header: readonly (readonly Inline[])[]; readonly rows: readonly (readonly (readonly Inline[])[])[] }
   | { readonly kind: 'thematicBreak' };
 export type Block<C = Chart> =
   | { readonly kind: 'markdown'; readonly content: readonly MarkdownBlock[] }

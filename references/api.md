@@ -1,161 +1,102 @@
-# SDK 接口
+# API 索引
 
-安装分发包后，所有 API 从 `@visualize/semantic` 导入。仓库示例也使用这个入口。用户不用知道 `src/` 或 `dist/` 的内部路径。安装方式见 [分发与使用](../README.md#分发与使用)。
+内容脚本从 Skill 目录的 `src/index.ts` 导入接口。生成命令见 [SKILL.md](../SKILL.md#生成)。
+
+| 要编写的内容 | 参考 |
+| --- | --- |
+| 组件、依赖、分区 | [架构图](architecture.md) |
+| 同步调用、返回、互斥分支 | [时序图](sequence.md) |
+| 报告正文、对象和图表引用 | [Markdown](markdown.md) |
+
+本页说明两类图表共用的文档、身份和输出接口。可运行示例独立放在 [examples](../examples/self-explanation.ts)。
 
 ## 文档与输出
 
-```ts
-import { document, render, compile } from '@visualize/semantic';
+| 调用 | 返回值 | 行为 |
+| --- | --- | --- |
+| `document()` | `Document` | 创建空文档 |
+| `doc.markdown(source)` | 新的 `Document` | 解析并追加一块 Markdown |
+| `doc.diagram(chart)` | 新的 `Document` | 追加由 `architecture()` 或 `sequence()` 创建的图表 |
+| `doc.toJSON()` | `SemanticDocument` | 收集共享对象和职责，返回可序列化的语义内容 |
+| `compile(doc)` | `{ semantic, scenes }` | 完整检查语义和布局，返回内容与图表几何结果 |
+| `render(doc)` | HTML 字符串 | 执行完整检查并渲染，不写文件 |
 
-const base = document().markdown('# 系统说明');
-const report = base.markdown('解释内容。').diagram(chart);
+调用顺序就是阅读顺序。文档不可变，追加内容不会修改原文档；循环构建时需要写回返回值。创建图表本身不会将它加入文档。
 
-export default report;
+文档只追加一张图就生成单图。纯 Markdown、多图和图文混排也使用同一个文档接口。不能渲染完全没有内容块的文档。
 
-// 嵌入其他 Node 程序时可以直接调用：
-const html = render(report);
-const { semantic, scenes } = compile(report);
-```
+`toJSON()` 会检查共享对象和职责是否存在定义冲突，但不检查所有引用、调用顺序或几何约束；它不能替代 `compile()`。没有将 JSON 导回文档的接口，也不能把普通 JSON 对象传给 `.diagram()`。
 
-`document()` 创建不可变文档。`.markdown(source)` 和 `.diagram(chart)` 返回新文档；调用顺序就是阅读顺序。循环追加时写 `result = result.diagram(chart)`。未加入文档的图表不会出现在产物里。
-
-`render()` 返回完整 HTML 字符串；`compile()` 检查内容和布局并返回语义文档与图表几何结果，不写文件。`report.toJSON()` 只生成可序列化的语义文档，不执行完整检查。HTML 内嵌系统提供的节点详情交互脚本，不包含内容作者的脚本、外部字体或网络资源。
-
-单图无需模式参数：`export default document().diagram(chart)`。纯 Markdown、多图而无文字也可以输出。
-
-## TypeScript 检查
-
-SDK 和 CLI 源码使用 TypeScript，`pnpm build` 生成 `dist/` 下的 JavaScript 与 `.d.ts`。`package.json` 的 `exports` 同时提供运行入口与类型入口，CLI 名称为 `visualize`。`pnpm typecheck` 先构建再执行 `tsc --noEmit`，开启 `strict` 和 `erasableSyntaxOnly`，覆盖源码、示例、测试和编译期契约检查。用户内容脚本可由 Node.js 22.18 及以上版本运行；运行 `.ts` 文件本身不执行类型检查。
-
-`ArchitectureOptions` 和 `SequenceOptions` 是作者输入；`Entity` 是规范化后的共享对象；`SemanticDocument` 是可序列化的只读文档；`Scene` 是布局结果。`Step` 通过 `kind` 区分调用、返回和条件分支。需要这些类型时使用 `import type` 从 SDK 入口导入。JavaScript 调用、动态加载的输入仍经过运行时校验。
+`semantic` 包含 `version`、`entities`、`roles`、`blocks`，其中图表通过标识引用共享对象和职责。`scenes` 按图表出现顺序排列，包含画布尺寸、节点和连线；架构场景还包含分区，时序场景包含生命线、执行区间和条件片段。场景类型分别为 `ArchitectureScene`、`SequenceScene`。
 
 ## 共享身份与角色
 
-```ts
-import { entity, role } from '@visualize/semantic';
+`entity(options)` 创建共享对象，`role(options)` 创建职责。返回值和文档语义内容均为只读数据。
 
-const api = entity({
-  id: 'api',
-  label: 'API 服务',
-  description: '接收请求并组织处理', // 可省略，作为图内摘要
-  tags: [{ id: 'public-api', label: '公开接口' }] // 可省略，点击后按标签展示
-});
-const database = entity({ id: 'database', label: '数据库' });
-const compute = role({ id: 'compute', label: '业务处理' });
-const storage = role({ id: 'storage', label: '持久存储' });
-```
+| `entity()` 字段 | 必填 | 含义 |
+| --- | --- | --- |
+| `id` | 是 | 对象标识 |
+| `label` | 是 | 非空显示名称 |
+| `description` | 否 | 单行图内摘要，最多 80 个字符 |
+| `tags` | 否 | 分类标签数组，默认 `[]` |
 
-`entity` 表示对象身份；`role` 表示图中的职责。`label` 是对象的显示名称，`tags` 是分类标签，每项只有 `id` 和 `label`。同一标签标识在文档内必须对应同一名称，一个对象不能重复声明同一标签。标签最多 8 个，名称最多 24 个字符，必须为单行短文本。`description` 仅为最多 80 个字符的单行图内摘要。
+每个标签只有 `id`、`label` 两个字段。一个对象最多 8 个标签，标签名称最多 24 个字符。摘要和标签名称不能包含换行、制表符或首尾空白。标签按普通文字处理。
 
-详情面板展示对象标识、标签，以及从当前图提取的角色、所属分区和关系；这些属性不参与节点几何计算。没有独立的详情正文，也不接受 `details`、`metadata` 或任意字段。标签按普通文本渲染，不解析 Markdown。新增信息类型应声明明确的字段和语义，不能把说明正文包装成 JSON 后塞入属性。
+`role()` 只有必填的 `id` 和 `label`，用于说明对象在图中的职责。颜色由 SDK 分配，同一职责在整份文档中保持一致；一个对象在不同图中可以使用不同职责。
 
-点击图中节点后，面板保留当前图表的上下文，只展示该图中的角色、分区归属和关系。点击关联节点会关闭面板，在当前图中滚动到目标节点并高亮、聚焦它，地址片段指向该节点。“在其他图中定位”会关闭面板，滚动到对应节点并高亮、聚焦它，地址片段也指向该节点。定位高亮保持到下一次定位或点击图中空白、页面背景；点击节点和详情内容不会解除定位高亮。正文中的对象引用先展示共享标识和标签，再提供图表定位入口。节点以悬停和键盘焦点高亮提示交互，没有可见的“查看详情”文字。点击蒙层、按 Escape 或使用关闭按钮可关闭面板并归还焦点。禁用 JavaScript 时，图中节点和正文引用指向文末可展开资料，资料内的关联节点链接仍指向图中对应节点。标识符以小写英文字母开头，只含小写英文字母、数字和连字符。同一标识的对象定义在整份文档中必须一致；同一对象在不同图里可以承担不同角色。角色颜色在文档内统一分配，角色标签同时出现在图例中。
+详情由对象属性和图中的角色、分区归属、关系生成。没有 `details`、`metadata` 或自由正文属性。对象名称没有单独的字符数上限，但仍必须符合节点尺寸和文字行数限制。
 
-每张图的 `nodes` 或 `participants` 显式声明对象、角色和 `size: { width, height }`。尺寸为大于零的有限数字。关系中的 `from`、`to` 可以传对象或标识字符串，但引用对象必须出现在当前图中。
+所有标识遵循 `^[a-z][a-z0-9-]*$`，例如 `order-api`。重复规则如下：
 
-## 架构图与逻辑分区
+| 标识类型 | 作用范围 | 重复规则 |
+| --- | --- | --- |
+| 对象、职责 | 整份文档 | 可以跨图复用，完整定义必须一致 |
+| 标签 | 整份文档 | 同一标识必须对应同一名称；同一对象内不能重复 |
+| 图表 | 整份文档 | 不能重复 |
+| 分区 | 当前架构图 | 不能重复 |
+| 关系、消息、条件片段 | 当前图表 | 不能重复，时序图包含所有分支中的步骤 |
 
-```ts
-import { architecture } from '@visualize/semantic';
+同一对象在一张图里只能出现一次，可以被多条关系引用。复用对象时保留相同的标签顺序，避免完整定义冲突。参数对象只接受文档列出的字段，额外字段会被拒绝。
 
-const chart = architecture({
-  id: 'order-architecture',
-  title: '订单系统的逻辑分区与依赖',
-  partitions: [
-    { id: 'order-domain', label: '订单业务', position: { x: 0, y: 0 }, size: { width: 620, height: 200 } }
-  ],
-  nodes: [
-    { entity: api, role: compute, partition: 'order-domain', position: { x: 0, y: 0 }, size: { width: 220, height: 88 } },
-    { entity: database, role: storage, partition: 'order-domain', position: { x: 340, y: 0 }, size: { width: 220, height: 88 } }
-  ],
-  relations: [{ id: 'write-order', from: api, to: database, label: '保存订单' }]
-});
-```
+整份文档最多使用 6 种职责。
 
-`Partition` 表示逻辑区域，只包含 `id`、`label`、`position` 和 `size`，其中名称最多 48 个字符。它是图内的分组声明，不进入文档的 `entities`，没有角色、标签或详情面板，也不能作为连线端点。相同分区标识不能在一张图中重复，每个分区至少有一个节点。没有分区时可以省略 `partitions`。
+## 生成后的交互
 
-节点通过 `partition: 分区标识` 声明归属，未指定则位于画布根层。分区本身不嵌套，实体之间没有容器关系。节点详情展示“所属分区”的名称。`relations` 表示实体之间的有向依赖或作用，允许循环、自依赖和多条不同关系；没有依赖时显式写 `relations: []`。
-
-架构节点和分区都必须声明 `position: { x, y }` 与 `size: { width, height }`。坐标为非负有限数字，尺寸为正有限数字，单位是 SVG 用户单位；当前输出一单位对应一个 CSS 像素。根节点和分区相对于画布内容原点，分区内节点相对于该分区的内容区域。画布边距为 32 像素；分区标题区为文字高度加 24 像素，内容区还有 24 像素内边距。
-
-宽高严格采用声明值。节点文字放不下返回 `NODE_CONTENT_FIT`，超过文字行数上限返回 `LABEL_CAPACITY`；节点超出分区或分区标题放不下返回 `PARTITION_CONTENT_FIT`。分区之间、分区与根节点之间不能重叠，节点之间也必须留出至少 12 像素间距。系统不会自动放大、移动或截断内容。横向排布建议留出约 100 像素或更多间隔，以容纳关系标签。
-
-连接采用直线或正交折线，标签直接放在对应线段旁。路由避开节点、分区标题和已放置的标签，允许穿过分区的虚线边界。如果没有可用通道，返回 `RELATION_LAYOUT`，由作者调整位置。颜色、字号、形状和 CSS 不开放给内容脚本。
-
-## 时序图
-
-```ts
-import { sequence } from '@visualize/semantic';
-
-const chart = sequence({
-  id: 'save-sequence',
-  title: '保存订单的交互顺序',
-  participants: [
-    { entity: api, role: compute, size: { width: 160, height: 56 } },
-    { entity: database, role: storage, size: { width: 160, height: 56 } }
-  ],
-  steps: [
-    { id: 'save', from: api, to: database, label: '写入订单' },
-    {
-      id: 'result',
-      kind: 'alternative',
-      branches: [
-        {
-          label: '写入成功',
-          steps: [{ id: 'saved', from: database, to: api, label: '返回订单编号', replyTo: 'save' }]
-        },
-        {
-          label: '写入失败',
-          steps: [{ id: 'failed', from: database, to: api, label: '返回错误', replyTo: 'save' }]
-        }
-      ]
-    }
-  ]
-});
-```
-
-参与者按声明顺序横向排列，采用各自声明的宽高，相邻边界间隔为 40 像素；标题框仅显示名称。生命线从各自标题框底部开始，首条消息位于最高标题框下方。消息按 `steps` 顺序向下排列。普通消息表示同步调用，实线实心箭头指向接收者；接收时开始执行条。带 `replyTo` 的消息表示返回，使用虚线空心箭头，并在发送时结束对应执行条。
-
-每次调用必须有对应返回；返回端点与调用相反，先返回内层调用。正在等待同步调用的参与者不能同时发起另一调用。`from` 与 `to` 相同表示自调用，嵌套执行条横向错开。当前只支持有明确返回的同步调用，不将异步消息套用这套生命周期。
-
-互斥条件分支必须以相同的调用状态结束。例如，两个分支都返回外层调用，或都保持外层调用，统一在分支之后返回。分支内发起的调用不能被另一分支引用。跨分支的同一次外层执行会分段绘制，分别显示各条路径上的执行终点。
-
-条件片段使用 `kind: 'alternative'`，每个分支包含条件标签与非空 `steps`。消息与条件片段的 `id` 在一张图中共同保持唯一。条件区域使用标准 `alt` 标签和方括号条件。当前不支持循环片段或并发片段，不要用条件分支冒充这些语义。
-
-## 报告 Markdown 范围
-
-Markdown 仅用于文档的 `.markdown()` 块，不用于节点属性。使用项目内的 TypeScript 解析器生成报告内容结构，没有第三方运行时依赖。以下是本项目支持的 Markdown 子集，不承诺完整 CommonMark 兼容。
-
-- 标题、段落、嵌套强调、行内代码、换行、分隔线和引用块。
-- 有序与无序列表，支持嵌套列表及列表项内的多个段落，保留有序列表起始值。
-- 反引号、波浪号或缩进代码块，保留语言标记；不执行代码。
-- 普通链接、引用式链接、自动链接，地址限于 http、https、mailto。
-- `[对象](entity:api)` 打开对象属性，`[架构](diagram:order-architecture)` 引用图表；支持在引用块和列表中检查这些引用。
-- 反斜线转义 ASCII 标点；十进制和十六进制字符引用，以及 `amp`、`lt`、`gt`、`quot`、`apos`、`nbsp` 六种命名字符引用；其他命名字符引用保留为文字。
-- Setext 标题，即标题下一行使用 `===` 或 `---`。
-
-模板字符串会去除共同空格缩进。列表项的续行和子块必须用空格缩进到列表正文列；引用块每行都需要 `>`，空行写成单独的 `>`。引用链接定义写在单行内；标签忽略大小写并合并连续空白，第一次定义生效。未定义的引用按普通文字保留。链接不能嵌套，块结构和强调分别最多嵌套 32 层。
-
-未闭合的围栏代码块延续到输入末尾。原始 HTML 和图片产生带源文件行号的诊断，代码块中的 HTML 作为文本转义。表格、任务列表、删除线和脚注没有专门语义，保留为普通文字与已有块结构，不增加隐式扩展。
-
-## 容量与错误
-
-| 范围 | 限制 |
+| 操作 | 结果 |
 | --- | --- |
-| 每个对象的标签 | 最多 8 个，每个名称最多 24 个字符 |
-| 对象的图内摘要 | 最多 80 个字符，单行 |
-| 整份文档的角色 | 最多 6 种 |
-| 架构图对象 | 每图最多 12 个 |
-| 架构图关系 | 每图最多 16 条 |
-| 架构分区 | 不嵌套，每个分区至少有一个节点 |
-| 时序参与者 | 最多 6 个 |
-| 时序消息 | 最多 32 条调用与返回 |
-| 同一参与者的执行嵌套 | 最多 4 层 |
-| 时序条件片段嵌套 | 最多 3 层 |
-| 布局尺寸 | 最大 1280 × 2600 |
+| 点击图中节点 | 打开该对象的详情，只展示当前图中的职责、分区归属和关系 |
+| 点击正文对象引用 | 展示共享属性和图表定位入口 |
+| 点击详情中的关联节点 | 关闭详情，在当前图中定位并高亮目标节点 |
+| 使用跨图定位入口 | 关闭详情，在指定图中定位同一对象 |
+| 点击图中空白或页面背景 | 解除定位高亮 |
+| 点击节点或详情内容 | 保留已有定位高亮 |
+| 点击关闭按钮、蒙层或按 Escape | 关闭详情，焦点回到打开入口 |
 
-标签和说明有行数限制，具体诊断会指出位置。容量是当前布局的阅读边界；修改限制需要一同验证布局，而不是绕过检查。宽图在小屏幕内横向滚动，不压缩字号。图表字体使用系统等宽字体与固定字符前进宽度，详情见 [架构说明](../docs/architecture.md)。
+定位会更新地址片段到具体节点，并将节点滚动到可见位置。蒙层关闭要求指针按下和点击都发生在面板外，从面板内拖到外侧不会误关。没有 JavaScript 时，节点链接仍指向文末可展开资料。
 
-SDK 抛出 `DiagnosticError`，其 `diagnostics` 数组包含 `code`、`path`、`message`、`hint`。语义检查会尽可能汇总多个问题；声明语法或布局错误在检测处立即返回。
+## 诊断与命令行
 
-CLI 成功时向 stdout 输出 JSON，失败时向 stderr 输出诊断 JSON 并以 1 退出。`--check` 检查语义与布局，不写文件；构建先生成完整 HTML，再原子替换目标文件，失败时保留旧产物。脚本输出日志时应写 stderr，避免与 CLI 成功 JSON 混合。
+声明阶段检查字段、基本类型和 Markdown；文档合并时检查对象与职责身份；`compile()` 和 `render()` 继续检查引用、调用生命周期及几何布局。它们可能抛出 `DiagnosticError`，其 `diagnostics` 是包含以下字段的数组：
+
+| 字段 | 用途 |
+| --- | --- |
+| `code` | 识别错误类别 |
+| `path` | 定位声明字段；Markdown 解析错误包含源行号 |
+| `message` | 说明错误 |
+| `hint` | 给出修改方向 |
+
+常见错误包括 `UNKNOWN_FIELD`、`IDENTITY_CONFLICT`、`UNKNOWN_ENDPOINT`、`UNKNOWN_REFERENCE`、`NODE_CONTENT_FIT`、`PARTITION_CONTENT_FIT`、`NODE_OVERLAP`、`REGION_OVERLAP`、`RELATION_LAYOUT`。时序错误如 `UNFINISHED_CALL`、`RETURN_ORDER`、`BRANCH_EXECUTION_MISMATCH` 表示调用模型需要修正。具体错误应以返回的诊断为准。
+
+CLI 接收一个输入脚本和以下选项：
+
+| 选项 | 行为 |
+| --- | --- |
+| `--check` | 只检查，不写 HTML；同时传入 `-o` 也不会写文件 |
+| `-o <文件>` 或 `--output <文件>` | 生成 HTML，按需创建父目录 |
+| `-h` 或 `--help` | 显示用法 |
+
+成功时 stdout 输出 JSON：检查结果包含 `ok: true` 和 `diagrams`；生成结果包含 `ok: true` 和输出绝对路径 `output`。失败时 stderr 输出 `ok: false` 和 `diagnostics`，退出码为 1。输入脚本的日志应写 stderr，避免与结果 JSON 混合。
+
+输出先写入临时文件，再替换目标文件；失败时保留已有产物。输出路径不能与输入脚本相同。CLI 执行普通本地 ES module，具有 Node 进程权限，不提供代码隔离。
+
+Node 运行 `.ts` 时只移除类型，不做类型检查。
