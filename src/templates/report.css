@@ -193,8 +193,8 @@ footer {
 }
 
 .node-link:hover .node-surface {
-  stroke:var(--node-color);
-  stroke-width:2;
+  stroke:#285c88;
+  stroke-width:3;
   fill:var(--node-hover-fill);
 }
 
