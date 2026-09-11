@@ -16,8 +16,6 @@ body {
 }
 
 main {
-  max-width: 1120px;
-  margin: 0 auto;
   padding: 56px 28px 80px;
   background: #fff;
   min-height: 100vh;
@@ -380,7 +378,6 @@ footer {
   }
   main {
     padding: 0;
-    max-width: none;
   }
   figure {
     break-inside: avoid;

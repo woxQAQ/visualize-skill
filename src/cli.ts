@@ -4,8 +4,7 @@ import { dirname, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { parseArgs } from "node:util";
 import { randomUUID } from "node:crypto";
-import { compile, DiagnosticError } from "./index.ts";
-import { renderCompiled } from "./render.ts";
+import { compile, render, DiagnosticError } from "./index.ts";
 import { isDocument } from "./sdk.ts";
 import { fail } from "./diagnostics.ts";
 
@@ -39,20 +38,18 @@ try {
         "默认导出必须是 SDK 的 document() 结果。",
         "使用 export default document().markdown(...).diagram(...)。",
       );
-    const result = compile(module.default);
     if (values.check) {
-      process.stdout.write(
-        `${JSON.stringify({ ok: true, diagrams: result.scenes.length, warnings: result.warnings })}\n`,
-      );
+      const result = compile(module.default);
+      process.stdout.write(`${JSON.stringify({ ok: true, diagrams: result.scenes.length })}\n`);
     } else {
       if (!output) throw new Error("缺少输出路径。");
-      const html = renderCompiled(result);
+      const html = render(module.default);
       await mkdir(dirname(output), { recursive: true });
       temp = `${output}.${randomUUID()}.tmp`;
       await writeFile(temp, html, "utf8");
       await rename(temp, output);
       temp = undefined;
-      process.stdout.write(`${JSON.stringify({ ok: true, output, warnings: result.warnings })}\n`);
+      process.stdout.write(`${JSON.stringify({ ok: true, output })}\n`);
     }
   }
 } catch (error) {

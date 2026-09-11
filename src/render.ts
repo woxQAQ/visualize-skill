@@ -1,6 +1,6 @@
 import type { Call, SemanticDocument, Step } from "./model.ts";
 import type { Document } from "./sdk.ts";
-import { context, theme } from "./design.ts";
+import { context } from "./design.ts";
 import { plainText } from "./markdown.ts";
 import { layoutArchitecture } from "./layout/architecture.ts";
 import { layoutSequence } from "./layout/sequence.ts";
@@ -123,27 +123,11 @@ export function compile(document: Document) {
           return layoutSwimlane(content, ctx);
       }
     });
-  const warnings = scenes
-    .filter((scene) => scene.width > theme.readingWidth)
-    .map((scene) => ({
-      code: "READING_WIDTH",
-      path: `diagram.${scene.id}`,
-      message: `图宽 ${Math.ceil(scene.width)} 像素，超出正文可用宽度 ${theme.readingWidth} 像素，阅读时需要横向滚动。`,
-      hint:
-        scene.kind === "sequence"
-          ? "在文字仍可完整显示的前提下减小参与者 size.width，或按阶段拆分时序图；参与者间距仅在不增加消息行数时收紧。"
-          : scene.kind === "architecture"
-            ? "缩短节点间的水平距离并收紧分区 size.width，或按职责拆图；节点 position 和 size 保持声明值。"
-            : "减小泳道 width，并将活动 position.x 调整到新的内容区内；保留连线和标签所需空间。",
-    }));
-  return { semantic, scenes, warnings };
+  return { semantic, scenes };
 }
 
 export function render(document: Document) {
-  return renderCompiled(compile(document));
-}
-
-export function renderCompiled({ semantic, scenes }: ReturnType<typeof compile>) {
+  const { semantic, scenes } = compile(document);
   const ctx = context(semantic);
   const firstHeading = semantic.blocks
     .flatMap((block) => (block.kind === "markdown" ? block.content : []))

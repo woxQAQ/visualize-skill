@@ -9,7 +9,6 @@ export const theme = freeze({
   font: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
   fontSize: 14,
   lineHeight: 22,
-  readingWidth: 1064,
   maxWidth: 1280,
   maxHeight: 2600,
   palette: [

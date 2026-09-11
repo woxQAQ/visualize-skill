@@ -3,7 +3,6 @@ import type {
   Call,
   Fragment,
   LayoutContext,
-  NodeLayout,
   Point,
   SequenceChart,
   SequenceEdgeLayout,
@@ -15,58 +14,9 @@ interface Execution {
   call: Call;
   activation: Activation;
 }
-import { theme, wrap } from "../design.ts";
+import { wrap } from "../design.ts";
 import { nodeBox, finish, path } from "./common.ts";
 import { fail } from "../diagnostics.ts";
-
-// Compact only oversized diagrams. Message line counts and participant sizes
-// remain unchanged; each gap retains at least 24 pixels of separation.
-function compactParticipants(nodes: NodeLayout[], steps: readonly Step[]) {
-  let excess = nodes.at(-1)!.x + nodes.at(-1)!.width + 52 - theme.readingWidth;
-  if (excess <= 0 || nodes.length < 2) return;
-  const centers = nodes.map((node) => node.x + node.width / 2);
-  const indices = new Map(nodes.map((node, i) => [node.id, i]));
-  const constraints: { start: number; end: number; slack: number }[] = [];
-  let count = 0;
-  function visit(steps: readonly Step[]) {
-    for (const step of steps) {
-      if (step.kind === "alternative") {
-        for (const branch of step.branches) visit(branch.steps);
-        continue;
-      }
-      const from = indices.get(step.from)!,
-        to = indices.get(step.to)!;
-      const self = from === to;
-      const last = from === nodes.length - 1;
-      const start = self ? (last ? from - 1 : from) : Math.min(from, to);
-      const end = self ? start + 1 : Math.max(from, to);
-      const overhead = self ? (last ? 48 : 64) : 42;
-      const available = centers[end] - centers[start] - overhead;
-      const width = self ? Math.min(120, available) : available;
-      const text = `${++count}. ${step.label}`;
-      if (width < 12) continue; // The normal layout reports insufficient label space.
-      const lines = wrap(text, width, "", Infinity, 12).lines.length;
-      let lo = 12,
-        hi = Math.ceil(width);
-      while (lo < hi) {
-        const mid = Math.floor((lo + hi) / 2);
-        if (wrap(text, mid, "", Infinity, 12).lines.length <= lines) hi = mid;
-        else lo = mid + 1;
-      }
-      constraints.push({ start, end, slack: Math.max(0, available - lo) });
-    }
-  }
-  visit(steps);
-  for (let i = 0; i < nodes.length - 1; i++) {
-    const affected = constraints.filter(
-      (constraint) => constraint.start <= i && i < constraint.end,
-    );
-    const reduction = Math.min(16, excess, ...affected.map((constraint) => constraint.slack));
-    for (let j = i + 1; j < nodes.length; j++) nodes[j].x -= reduction;
-    for (const constraint of affected) constraint.slack -= reduction;
-    excess -= reduction;
-  }
-}
 
 export function layoutSequence(chart: SequenceChart, ctx: LayoutContext): SequenceScene {
   let nextX = 32;
@@ -75,7 +25,6 @@ export function layoutSequence(chart: SequenceChart, ctx: LayoutContext): Sequen
     nextX += box.width + 40;
     return box;
   });
-  compactParticipants(nodes, chart.steps);
   const headerHeight = Math.max(...nodes.map((node) => node.height));
   const centers = new Map(nodes.map((node) => [node.id, node.x + node.width / 2]));
   const width = nodes.at(-1)!.x + nodes.at(-1)!.width + 52;

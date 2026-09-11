@@ -13,14 +13,14 @@
 
 ## 文档与输出
 
-| 调用                   | 返回值                           | 行为                                                             |
-| ---------------------- | -------------------------------- | ---------------------------------------------------------------- |
-| `document()`           | `Document`                       | 创建空文档                                                       |
-| `doc.markdown(source)` | 新的 `Document`                  | 解析并追加一块 Markdown                                          |
-| `doc.diagram(chart)`   | 新的 `Document`                  | 追加由 `architecture()`、`sequence()` 或 `swimlane()` 创建的图表 |
-| `doc.toJSON()`         | `SemanticDocument`               | 收集共享对象和职责，返回可序列化的语义内容                       |
-| `compile(doc)`         | `{ semantic, scenes, warnings }` | 完整检查语义和布局，返回内容、图表几何结果及不阻止生成的提示     |
-| `render(doc)`          | HTML 字符串                      | 执行完整检查并渲染，不写文件                                     |
+| 调用                   | 返回值                 | 行为                                                             |
+| ---------------------- | ---------------------- | ---------------------------------------------------------------- |
+| `document()`           | `Document`             | 创建空文档                                                       |
+| `doc.markdown(source)` | 新的 `Document`        | 解析并追加一块 Markdown                                          |
+| `doc.diagram(chart)`   | 新的 `Document`        | 追加由 `architecture()`、`sequence()` 或 `swimlane()` 创建的图表 |
+| `doc.toJSON()`         | `SemanticDocument`     | 收集共享对象和职责，返回可序列化的语义内容                       |
+| `compile(doc)`         | `{ semantic, scenes }` | 完整检查语义和布局，返回内容与图表几何结果                       |
+| `render(doc)`          | HTML 字符串            | 执行完整检查并渲染，不写文件                                     |
 
 调用顺序就是阅读顺序。文档不可变，追加内容不会修改原文档；循环构建时需要写回返回值。创建图表本身不会将它加入文档。
 
@@ -99,9 +99,7 @@ CLI 接收一个输入脚本和以下选项：
 | `-o <文件>` 或 `--output <文件>` | 生成 HTML，按需创建父目录                     |
 | `-h` 或 `--help`                 | 显示用法                                      |
 
-成功时 stdout 输出 JSON：检查结果包含 `ok: true`、`diagrams` 和 `warnings`；生成结果包含 `ok: true`、输出绝对路径 `output` 和 `warnings`。`warnings` 是提示数组，没有提示时为 `[]`，每项沿用诊断的 `code`、`path`、`message`、`hint` 字段。`READING_WIDTH` 表示图宽超过正文最大可用宽度 1064，提示如何调整声明，仍允许生成，不会改变节点尺寸或位置。提示也可从 `compile(doc).warnings` 读取，不写入报告正文。
-
-失败时 stderr 输出 `ok: false` 和 `diagnostics`，退出码为 1。输入脚本的日志应写 stderr，避免与结果 JSON 混合。
+成功时 stdout 输出 JSON：检查结果包含 `ok: true` 和 `diagrams`；生成结果包含 `ok: true` 和输出绝对路径 `output`。失败时 stderr 输出 `ok: false` 和 `diagnostics`，退出码为 1。输入脚本的日志应写 stderr，避免与结果 JSON 混合。
 
 输出先写入临时文件，再替换目标文件；失败时保留已有产物。输出路径不能与输入脚本相同。CLI 执行普通本地 ES module，具有 Node 进程权限，不提供代码隔离。
 

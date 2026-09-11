@@ -59,7 +59,7 @@ export default document().diagram(architecture({ id: 'external', title: '外部�
 `,
   );
   const checked = await exec(process.execPath, [cli, "report.ts", "--check"], { cwd: external });
-  assert.deepEqual(JSON.parse(checked.stdout), { ok: true, diagrams: 1, warnings: [] });
+  assert.deepEqual(JSON.parse(checked.stdout), { ok: true, diagrams: 1 });
   await exec(process.execPath, [cli, "report.ts", "-o", "report.html"], { cwd: external });
   assert.match(await readFile(join(external, "report.html"), "utf8"), /外部内容脚本/);
 });

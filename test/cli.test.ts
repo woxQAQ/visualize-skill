@@ -26,7 +26,7 @@ test("CLI resolves command paths from cwd and relative imports from the content 
   const check = await exec(process.execPath, [relativeCli, "content/report.ts", "--check"], {
     cwd: dir,
   });
-  assert.deepEqual(JSON.parse(check.stdout), { ok: true, diagrams: 0, warnings: [] });
+  assert.deepEqual(JSON.parse(check.stdout), { ok: true, diagrams: 0 });
   const build = await exec(
     process.execPath,
     [relativeCli, "content/report.ts", "-o", "nested/report.html"],
@@ -57,38 +57,4 @@ test("CLI reports diagnostics and preserves the previous output on failure", asy
       JSON.parse(error.stderr).diagnostics[0].code === "EMPTY_DOCUMENT",
   );
   assert.equal(await readFile(output, "utf8"), "previous report");
-});
-
-test("wide diagrams produce actionable warnings in checks and successful report generation", async (t) => {
-  const dir = await mkdtemp(join(tmpdir(), "visualize-width-"));
-  t.after(() => rm(dir, { recursive: true, force: true }));
-  const fixture = pathToFileURL(resolve("test/fixtures/agent-routing.ts")).href;
-  const input = join(dir, "report.ts"),
-    output = join(dir, "report.html");
-  await writeFile(
-    input,
-    `import {document} from ${JSON.stringify(sdk)};
-import {agentOverview, agentFlow} from ${JSON.stringify(fixture)};
-export default document().diagram(agentOverview).diagram(agentFlow);`,
-  );
-  const checked = JSON.parse((await exec(process.execPath, [cli, input, "--check"])).stdout);
-  assert.equal(checked.ok, true);
-  assert.equal(checked.diagrams, 2);
-  assert.deepEqual(
-    checked.warnings.map((warning: { code: string; path: string }) => [warning.code, warning.path]),
-    [
-      ["READING_WIDTH", "diagram.package-overview"],
-      ["READING_WIDTH", "diagram.durable-flow"],
-    ],
-  );
-  assert.ok(
-    checked.warnings.every(
-      (warning: { message: string; hint: string }) =>
-        warning.message.includes("1064") && warning.hint,
-    ),
-  );
-  const built = JSON.parse((await exec(process.execPath, [cli, input, "-o", output])).stdout);
-  assert.equal(built.ok, true);
-  assert.deepEqual(built.warnings, checked.warnings);
-  assert.match(await readFile(output, "utf8"), /<svg/);
 });
