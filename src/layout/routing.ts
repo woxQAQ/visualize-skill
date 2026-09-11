@@ -35,9 +35,9 @@ function compact(points: readonly Point[]): Point[] {
   return result;
 }
 
-function ports(box: Rect, fraction: number): { side: string; point: Point; lead: Point }[] {
-  const x = box.x + box.width * fraction;
-  const y = box.y + box.height * fraction;
+function ports(box: Rect): { side: string; point: Point; lead: Point }[] {
+  const x = box.x + box.width / 2;
+  const y = box.y + box.height / 2;
   return [
     { side: 'right', point: [box.x + box.width, y], lead: [box.x + box.width + 18, y] },
     { side: 'bottom', point: [x, box.y + box.height], lead: [x, box.y + box.height + 18] },
@@ -94,15 +94,11 @@ export function routeRelations(chart: { id: string; relations: readonly Relation
 
   return chart.relations.map(relation => {
     const from = boxes.get(relation.from)!, to = boxes.get(relation.to)!;
-    const outgoing = chart.relations.filter(edge => edge.from === relation.from);
-    const incoming = chart.relations.filter(edge => edge.to === relation.to);
-    const fractionFrom = (outgoing.indexOf(relation) + 1) / (outgoing.length + 1);
-    const fractionTo = (incoming.indexOf(relation) + 1) / (incoming.length + 1);
     const label = wrap(relation.label, 170, `diagram.${chart.id}.${relation.id}.label`, 3, 12);
     const choices: { points: Point[]; position: Position; cost: number }[] = [];
 
-    for (const start of ports(from, fractionFrom)) {
-      for (const end of ports(to, fractionTo)) {
+    for (const start of ports(from)) {
+      for (const end of ports(to)) {
         if (from.id === to.id && start.side === end.side) continue;
         for (const core of candidates(start.lead, end.lead, columns, rows)) {
           if (core.some(point => point[0] < 8 || point[1] < 8)) continue;

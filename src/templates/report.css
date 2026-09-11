@@ -159,8 +159,7 @@ details li {
 }
 
 html:not(.interactive) svg [data-entity]:target .node-surface,svg [data-located] .node-surface {
-  stroke:#285c88;
-  stroke-width:3;
+  stroke-width:3.5;
 }
 
 footer {
@@ -193,9 +192,7 @@ footer {
 }
 
 .node-link:hover .node-surface {
-  stroke:#285c88;
-  stroke-width:3;
-  fill:var(--node-hover-fill);
+  stroke-width:3.5;
 }
 
 .node-link:focus {
@@ -203,9 +200,7 @@ footer {
 }
 
 .node-link:focus-visible .node-surface {
-  stroke:#285c88;
-  stroke-width:3;
-  fill:var(--node-hover-fill);
+  stroke-width:3.5;
 }
 
 .interactive .entity-notes {

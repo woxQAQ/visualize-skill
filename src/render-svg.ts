@@ -35,9 +35,9 @@ function nodeMarkup(node: NodeLayout, chart: Chart, ctx: LayoutContext) {
   return `
     <g id="entity-${chart.id}-${node.id}" data-entity="${node.id}" data-role="${node.role}">
       <a class="node-link" text-anchor="middle" href="#details-${node.id}" data-entity-detail="details-${node.id}" data-chart="${chart.id}"
-        aria-label="${escape(entity.label)}，查看详情" tabindex="0" style="--node-hover-fill:${color.fill}">
+        aria-label="${escape(entity.label)}，查看详情" tabindex="0">
         <rect class="node-surface" x="${node.x}" y="${node.y}" width="${node.width}" height="${node.height}"
-          rx="4" fill="${color.fill}" stroke="${color.ink}"/>
+          rx="4" fill="${color.fill}" stroke="${color.ink}" stroke-width="2.5"/>
         ${textBlock(node.title, textX, textY, { weight: 600 })}
         ${node.detail ? textBlock(node.detail, textX, textY + node.title.height + 6, { fill: theme.muted }) : ''}
       </a>
