@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { architecture, compile, document, entity, role, swimlane } from "../src/index.ts";
 import type { EdgeLayout, NodeLayout, Point, Relation, Scene } from "../src/model.ts";
 import { agentFlow, agentOverview } from "./fixtures/agent-routing.ts";
+import { overview as harnessOverview } from "./fixtures/harness-routing.ts";
 import { overlaps } from "../src/layout/routing.ts";
 import { expense } from "../examples/swimlane.ts";
 
@@ -139,7 +140,7 @@ function length(edge: EdgeLayout) {
     );
 }
 
-function assertNoLongSharedSegments(edges: EdgeLayout[]) {
+function assertNoLongSharedSegments(edges: EdgeLayout[], allowance = 18) {
   for (const [index, edge] of edges.entries()) {
     for (const other of edges.slice(index + 1)) {
       for (let i = 1; i < edge.points.length; i++) {
@@ -159,8 +160,8 @@ function assertNoLongSharedSegments(edges: EdgeLayout[]) {
               Math.max(Math.min(a[0], b[0]), Math.min(c[0], d[0]));
           }
           assert.ok(
-            shared <= 18,
-            `${edge.id} and ${other.id} share ${shared}px beyond a midpoint lead`,
+            shared <= allowance,
+            `${edge.id} and ${other.id} share ${shared}px, exceeding ${allowance}px`,
           );
         }
       }
@@ -182,9 +183,45 @@ test("package overview separates shared corridors and keeps the local Lane to Dr
     "wrapping must keep the existing English word intact",
   );
   assert.ok(
-    scene.edges.reduce((sum, edge) => sum + length(edge), 0) <= 5390,
-    "removing overlaps must not increase total length in the overview",
+    // Separating port leads also requires detours, bounded to 10% of the
+    // previous layout's 5390px budget that allowed shared 18px leads.
+    scene.edges.reduce((sum, edge) => sum + length(edge), 0) <= 5390 * 1.1,
+    "separating port leads must keep total detours bounded",
   );
+});
+
+test("harness report separates incoming arrows from outgoing leads without moving nodes", () => {
+  const scene = compile(document().diagram(harnessOverview)).scenes[0];
+  assertRoutes(scene);
+  assertNoLongSharedSegments(scene.edges);
+  const focus = new Set(["harness-execution", "compaction", "harness-session"]);
+  assertNoLongSharedSegments(
+    scene.edges.filter((edge) => focus.has(edge.from) || focus.has(edge.to)),
+    0,
+  );
+  for (const node of scene.nodes.filter((node) => focus.has(node.id))) {
+    const ports = scene.edges.flatMap((edge) => [
+      ...(edge.from === node.id ? [edge.points[0]] : []),
+      ...(edge.to === node.id ? [edge.points.at(-1)!] : []),
+    ]);
+    assert.equal(new Set(ports.map((point) => JSON.stringify(point))).size, ports.length, node.id);
+  }
+  const { kind: _kind, ...options } = harnessOverview;
+  const reversed = compile(
+    document().diagram(
+      architecture({
+        ...options,
+        relations: [...harnessOverview.relations].reverse(),
+      }),
+    ),
+  ).scenes[0];
+  assert.deepEqual(reversed.nodes, scene.nodes);
+  for (const edge of scene.edges) {
+    assert.deepEqual(
+      reversed.edges.find((other) => other.id === edge.id),
+      edge,
+    );
+  }
 });
 
 test("durable flow separates requests from their return paths within the declared lanes", () => {

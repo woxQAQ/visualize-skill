@@ -68,15 +68,36 @@ function compact(points: readonly Point[]): Point[] {
   return result;
 }
 
-function ports(box: Rect): { side: string; point: Point; lead: Point }[] {
+function ports(box: Rect, obstacles: Rect[]): { side: string; point: Point; lead: Point }[] {
   const x = box.x + box.width / 2;
   const y = box.y + box.height / 2;
-  return [
-    { side: "right", point: [box.x + box.width, y], lead: [box.x + box.width + 18, y] },
-    { side: "bottom", point: [x, box.y + box.height], lead: [x, box.y + box.height + 18] },
-    { side: "left", point: [box.x, y], lead: [box.x - 18, y] },
-    { side: "top", point: [x, box.y], lead: [x, box.y - 18] },
+  const sides: { side: string; point: Point; direction: Point }[] = [
+    { side: "right", point: [box.x + box.width, y], direction: [1, 0] },
+    { side: "bottom", point: [x, box.y + box.height], direction: [0, 1] },
+    { side: "left", point: [box.x, y], direction: [-1, 0] },
+    { side: "top", point: [x, box.y], direction: [0, -1] },
   ];
+  return sides.map(({ side, point, direction }) => {
+    let distance = 18;
+    // Split a narrow corridor between its facing ports. Route validation still
+    // enforces node clearance, including when the corridor is too narrow.
+    for (const obstacle of obstacles) {
+      if (obstacle === box) continue;
+      const horizontal = direction[0] !== 0;
+      const axis = horizontal ? 0 : 1;
+      const cross = horizontal ? 1 : 0;
+      const start: Point = [obstacle.x, obstacle.y];
+      const end: Point = [obstacle.x + obstacle.width, obstacle.y + obstacle.height];
+      if (point[cross] < start[cross] - 8 || point[cross] > end[cross] + 8) continue;
+      const gap = direction[axis] > 0 ? start[axis] - point[axis] : point[axis] - end[axis];
+      if (gap >= 0) distance = Math.min(distance, gap / 2);
+    }
+    return {
+      side,
+      point,
+      lead: [point[0] + direction[0] * distance, point[1] + direction[1] * distance] as Point,
+    };
+  });
 }
 
 function candidates(a: Point, b: Point, columns: number[], rows: number[]): Point[][] {
@@ -179,8 +200,8 @@ function samePoint(a: Point, b: Point) {
   return a[0] === b[0] && a[1] === b[1];
 }
 
-// Shared midpoint ports may share their first 18 pixels. Beyond that lead,
-// coincident segments make independent relations indistinguishable.
+// Even a shared port lead can hide an arrow or merge independent relations.
+// Count its full overlap so another side is preferred when space permits.
 function conflicts(points: Point[], previous: Point[]): [number, number] {
   let overlap = 0;
   const intersections = new Set<string>();
@@ -202,12 +223,7 @@ function conflicts(points: Point[], previous: Point[]): [number, number] {
         const lo = Math.max(Math.min(a[axis], b[axis]), Math.min(c[axis], d[axis]));
         const hi = Math.min(Math.max(a[axis], b[axis]), Math.max(c[axis], d[axis]));
         if (hi <= lo) continue;
-        let shared = 0;
-        for (const end of sharedEnds) {
-          if (end[fixed] === a[fixed])
-            shared += Math.max(0, Math.min(hi, end[axis] + 18) - Math.max(lo, end[axis] - 18));
-        }
-        overlap += Math.max(0, hi - lo - shared);
+        overlap += hi - lo;
       } else {
         const [v1, v2, h1, h2] = vertical ? [a, b, c, d] : [c, d, a, b];
         const point: Point = [v1[0], h1[1]];
@@ -365,8 +381,8 @@ export function routeRelations(
     const choices: RouteChoice[] = [];
     const seen = new Set<string>();
 
-    for (const start of ports(from)) {
-      for (const end of ports(to)) {
+    for (const start of ports(from, obstacles)) {
+      for (const end of ports(to, obstacles)) {
         if (from.id === to.id && start.side === end.side) continue;
         for (const core of candidates(start.lead, end.lead, columns, rows)) {
           if (core.some((point) => point[0] < 8 || point[1] < 8)) continue;
