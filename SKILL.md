@@ -11,6 +11,8 @@ description: 将系统架构、组件依赖、同步调用和跨负责方流程�
 
 结构问题用架构图，同步调用过程用时序图，跨负责方的活动流转用泳道图。需要多种视角时，按实际身份跨图复用对象。每张图围绕一个问题组织，图外文字说明背景和结论，图内名称与关系标签保持简短、具体。
 
+多图报告让各节保持一致的阅读顺序，通常先用标题和一句要点引出图，再展开细节。架构图中未接入主图的节点或小组，应说明它们与当前问题的关系；根据实际依赖补连线，或明确其独立用途，不为连通图形虚构依赖。
+
 按需查阅 [API 索引](references/api.md)：[架构图](references/architecture.md)、[时序图](references/sequence.md)、[泳道图](references/swimlane.md)、[Markdown](references/markdown.md)。组合示例见 [self-explanation.ts](examples/self-explanation.ts)，流程示例见 [swimlane.ts](examples/swimlane.ts)。
 
 架构和时序对象表示实际组件，泳道对象表示流程活动；不要把执行者与其执行的活动当作同一对象。
@@ -39,4 +41,4 @@ node "<skill>/src/cli.ts" report.ts -o report.html
 
 打开 HTML 检查文字、连线、分区、泳道边界和调用顺序，以及节点详情与关联定位。修改后重新生成。交付 HTML 和内容脚本的链接；HTML 已内嵌样式与交互，无需服务器。
 
-若直连节点之间出现没有避障作用的短折线，检查两端中心线是否因尺寸或局部坐标偏移而错开，并修改内容脚本中的位置。
+若预期直连的节点出现折线，先检查画布中的中心线，再检查标签能否放入连接间隙、分区标题是否挡住路径。按原因调整声明；跨分区的留白安排见[架构图坐标说明](references/architecture.md#坐标与尺寸)。

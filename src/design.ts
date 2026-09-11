@@ -42,8 +42,9 @@ export function wrap(
   maxLines = 6,
   size = theme.fontSize,
 ): TextLayout {
-  const lines = [];
+  const lines: string[] = [];
   for (const paragraph of text.split("\n")) {
+    const paragraphStart = lines.length;
     let line = "";
     // Preserve words when they fit, while allowing identifiers and CJK to wrap.
     for (const { segment: token } of words.segment(paragraph)) {
@@ -61,6 +62,23 @@ export function wrap(
       }
     }
     lines.push(line.trimEnd());
+    // Keep a lone Han character with the preceding word when both lines fit.
+    // Rebalance within a paragraph, preserving explicit breaks and whole words.
+    const last = lines.length - 1;
+    if (last > paragraphStart && /^\p{Script=Han}$/u.test(lines[last])) {
+      const previous = lines[last - 1];
+      const word = [...words.segment(previous)].at(-1)!;
+      const prefix = previous.slice(0, word.index).trimEnd();
+      const tail = word.segment + lines[last];
+      if (
+        /^\p{Script=Han}+$/u.test(word.segment) &&
+        graphemes(prefix).length > 1 &&
+        measure(tail, size) <= width
+      ) {
+        lines[last - 1] = prefix;
+        lines[last] = tail;
+      }
+    }
   }
   if (lines.length > maxLines)
     fail(
