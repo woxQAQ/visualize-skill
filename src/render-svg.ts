@@ -50,7 +50,7 @@ function nodeMarkup(node: NodeLayout, chart: Chart, ctx: LayoutContext) {
   const textHeight = node.title.height + (node.detail ? node.detail.height + 6 : 0);
   const textY = node.y + (node.height - textHeight) / 2;
   return `
-    <g id="entity-${chart.id}-${node.id}" data-entity="${node.id}" data-role="${node.role}">
+    <g id="entity-${chart.id}-${node.id}" data-entity="${node.id}" data-role="${node.role}" style="--node-color:${color.ink}">
       <a class="node-link" text-anchor="middle" href="#details-${node.id}" data-entity-detail="details-${node.id}" data-chart="${chart.id}"
         aria-label="${escape(entity.label)}，查看详情" tabindex="0">
         <rect class="node-surface" x="${node.x}" y="${node.y}" width="${node.width}" height="${node.height}"
@@ -84,8 +84,27 @@ export function renderSvg(scene: Scene, chart: Chart, ctx: LayoutContext) {
   const highlightCallMarker = `highlight-arrow-${scene.id}`;
   const highlightReturnMarker = `highlight-return-arrow-${scene.id}`;
   const highlight = theme.palette[0].ink;
+  const neighbors = new Map(scene.nodes.map((node) => [node.id, new Set([node.id])]));
+  for (const edge of scene.edges) {
+    neighbors.get(edge.from)!.add(edge.to);
+    neighbors.get(edge.to)!.add(edge.from);
+  }
   // The graph is known at render time. Scoped CSS keeps hover and keyboard
-  // focus in sync without storing transient interaction state in JavaScript.
+  // focus in sync. Membership comes only from direct edges, never from another
+  // node's highlighted appearance, so emphasis cannot propagate down a chain.
+  const nodeHighlights = scene.nodes
+    .map((node) => {
+      const triggers = [...neighbors.get(node.id)!]
+        .map((id) => `[data-entity="${id}"] .node-link:is(:hover,:focus-visible)`)
+        .join(",");
+      return `
+      #diagram-${scene.id} svg:has(${triggers}) [data-entity="${node.id}"] {
+        opacity:1;
+        --node-elevation:drop-shadow(0 3px 4px color-mix(in srgb,var(--node-color) 22%,transparent));
+      }
+    `;
+    })
+    .join("");
   const highlights = scene.edges
     .map((edge) => {
       const endpoints = [...new Set([edge.from, edge.to])]
@@ -94,9 +113,10 @@ export function renderSvg(scene: Scene, chart: Chart, ctx: LayoutContext) {
       const active = `#diagram-${scene.id} svg:has(${endpoints})`;
       return `
       ${active} [data-relation="${edge.id}"] {
-        stroke:${highlight};stroke-width:2.5;
+        opacity:1;stroke:${highlight};stroke-width:2.5;
         marker-end:url(#${edge.dashed ? highlightReturnMarker : highlightCallMarker});
       }
+      ${active} [data-relation-label="${edge.id}"] { opacity:1; }
       ${active} [data-relation-label="${edge.id}"] text { fill:${highlight};font-weight:600; }
     `;
     })
@@ -164,8 +184,11 @@ export function renderSvg(scene: Scene, chart: Chart, ctx: LayoutContext) {
       viewBox="0 0 ${scene.width} ${scene.height}" role="group"
       aria-labelledby="svg-title-${scene.id} svg-desc-${scene.id}" style="font-family:${theme.font};color:${theme.ink}">
       <title id="svg-title-${scene.id}">${escape(chart.title)}</title>
-      <desc id="svg-desc-${scene.id}">悬停或键盘聚焦节点时高亮相连关系，点击节点或按 Enter 查看详细内容。${scene.kind === "sequence" ? "实线表示同步调用，虚线表示返回，生命线上的矩形表示执行区间。" : scene.kind === "swimlane" ? "横向泳道表示负责的人或系统，节点表示流程活动，箭头和标签表示流转方向与条件。" : "虚线框表示逻辑分区，箭头表示依赖，关系文字直接标注在线旁。"}</desc>
-      ${highlights ? `<style>@media screen {${highlights}}</style>` : ""}
+      <desc id="svg-desc-${scene.id}">悬停或键盘聚焦节点时强调当前节点、直接相邻节点和相连关系，弱化其余节点与关系，点击节点或按 Enter 查看详细内容。${scene.kind === "sequence" ? "实线表示同步调用，虚线表示返回，生命线上的矩形表示执行区间。" : scene.kind === "swimlane" ? "横向泳道表示负责的人或系统，节点表示流程活动，箭头和标签表示流转方向与条件。" : "虚线框表示逻辑分区，箭头表示依赖，关系文字直接标注在线旁。"}</desc>
+      <style>@media screen {
+        #diagram-${scene.id} svg:has(.node-link:is(:hover,:focus-visible)) :is([data-entity],[data-relation],[data-relation-label]) { opacity:0.45; }
+        ${nodeHighlights}${highlights}
+      }</style>
       <defs>
         ${arrowMarker(callMarker, theme.line)}
         ${arrowMarker(returnMarker, theme.line, { returning: true })}

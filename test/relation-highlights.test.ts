@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { document, render, swimlane } from "../src/index.ts";
+import { architecture, document, entity, render, role, swimlane } from "../src/index.ts";
 import { overview, generation } from "../examples/self-explanation.ts";
 import { expense } from "../examples/swimlane.ts";
 
@@ -14,6 +14,73 @@ function highlights(html: string) {
     }),
   );
 }
+
+function nodeHighlights(html: string) {
+  return [...html.matchAll(/([^\n]+) \[data-entity="([^"]+)"\] \{([^}]+)\}/g)].map(
+    ([, selector, id, declarations]) => ({
+      selector: selector.trim(),
+      id,
+      declarations,
+      triggers: [...selector.matchAll(/\[data-entity="([^"]+)"\]/g)].map((match) => match[1]),
+    }),
+  );
+}
+
+test("node emphasis includes direct neighbors without propagating through the graph", () => {
+  const cases = [
+    { chart: overview, active: "sdk", visible: ["skill", "sdk", "coordinator"] },
+    { chart: generation, active: "renderer", visible: ["coordinator", "renderer"] },
+    { chart: expense, active: "approve", visible: ["submit", "revise", "approve", "pay"] },
+  ];
+  for (const { chart, active, visible } of cases) {
+    const html = render(document().diagram(chart));
+    const rules = nodeHighlights(html);
+    assert.deepEqual(
+      rules.filter((rule) => rule.triggers.includes(active)).map((rule) => rule.id),
+      visible,
+    );
+    for (const rule of rules) {
+      assert.equal(new Set(rule.triggers).size, rule.triggers.length);
+      assert.ok(rule.triggers.includes(rule.id));
+      assert.ok(rule.selector.startsWith(`#diagram-${chart.id} svg:has(`));
+      assert.match(rule.declarations, /opacity:1/);
+      assert.match(rule.declarations, /--node-elevation:drop-shadow/);
+    }
+    assert.ok(
+      html.includes(
+        `#diagram-${chart.id} svg:has(.node-link:is(:hover,:focus-visible)) :is([data-entity],[data-relation],[data-relation-label]) { opacity:0.45; }`,
+      ),
+    );
+    for (const [, color, surface] of html.matchAll(
+      /style="--node-color:([^"]+)"[^]*?<rect class="node-surface"([^>]+)>/g,
+    )) {
+      assert.ok(surface.includes(`stroke="${color}"`));
+    }
+  }
+});
+
+test("isolated nodes still emphasize themselves and dim other nodes without any relations", () => {
+  const chart = architecture({
+    id: "isolated-nodes",
+    title: "独立节点",
+    nodes: ["first", "second"].map((id, index) => ({
+      entity: entity({ id, label: id }),
+      role: role({ id: "component", label: "组件" }),
+      position: { x: index * 240, y: 0 },
+      size: { width: 160, height: 80 },
+    })),
+    relations: [],
+  });
+  const html = render(document().diagram(chart));
+  assert.deepEqual(
+    nodeHighlights(html).map(({ id, triggers }) => ({ id, triggers })),
+    [
+      { id: "first", triggers: ["first"] },
+      { id: "second", triggers: ["second"] },
+    ],
+  );
+  assert.equal(highlights(html).length, 0);
+});
 
 test("every diagram highlights direct incoming and outgoing relations from either endpoint", () => {
   const cases = [
@@ -56,6 +123,8 @@ test("every diagram highlights direct incoming and outgoing relations from eithe
         endpoints.length,
       );
       assert.match(rule.declarations, /stroke:#285c88;stroke-width:2.5/);
+      assert.match(rule.declarations, /opacity:1/);
+      assert.ok(html.includes(`${rule.selector} [data-relation-label="${id}"] { opacity:1; }`));
       assert.ok(
         html.includes(
           `${rule.selector} [data-relation-label="${id}"] text { fill:#285c88;font-weight:600; }`,
@@ -135,6 +204,9 @@ test("highlight selectors remain local when charts reuse entities and relation i
   assert.equal(figures.length, 2);
   for (const [figure, id] of figures) {
     const rules = highlights(figure);
+    assert.ok(
+      nodeHighlights(figure).every((rule) => rule.selector.startsWith(`#diagram-${id} svg:has(`)),
+    );
     assert.equal(rules.length, 5);
     assert.ok(rules.every((rule) => rule.selector.startsWith(`#diagram-${id} svg:has(`)));
     const markerIds = new Set(
