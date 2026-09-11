@@ -99,10 +99,11 @@ export function layoutArchitecture(
   }
   const edges = routeRelations(chart, nodes, {
     obstacles: partitions.map((partition) => ({
-      x: partition.x + 16,
-      y: partition.y + 8,
-      width: partition.title.width + 16,
-      height: partition.title.height + 8,
+      // Match the painted text block; the router adds its own clearance.
+      x: partition.x + 24,
+      y: partition.y + 12,
+      width: partition.title.width,
+      height: partition.title.height,
     })),
     labelObstacles: partitions.flatMap(borderObstacles),
   });

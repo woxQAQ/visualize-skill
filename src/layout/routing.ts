@@ -102,6 +102,7 @@ function labelPositions(
   points: Point[],
   label: TextLayout,
   obstacles: Rect[],
+  labelObstacles: Rect[],
   bounds?: Rect,
 ): Position[] {
   const candidates = [];
@@ -128,17 +129,18 @@ function labelPositions(
   }
   return candidates.filter((position) => {
     const box = { ...position, width: label.width, height: label.height };
+    const background = {
+      x: box.x - 3,
+      y: box.y - 2,
+      width: box.width + 6,
+      height: box.height + 4,
+    };
     return (
       box.x >= 8 &&
       box.y >= 8 &&
-      (!bounds ||
-        contains(bounds, {
-          x: box.x - 3,
-          y: box.y - 2,
-          width: box.width + 6,
-          height: box.height + 4,
-        })) &&
+      (!bounds || contains(bounds, background)) &&
       !obstacles.some((obstacle) => overlaps(box, obstacle, 6)) &&
+      !labelObstacles.some((obstacle) => overlaps(background, obstacle, 2)) &&
       !points.slice(1).some((point, i) => crosses(points[i], point, box, 4))
     );
   });
@@ -301,7 +303,6 @@ export function routeRelations(
   const { bounds } = space;
   const boxes = new Map(nodes.map((node) => [node.id, node]));
   const obstacles: Rect[] = [...nodes, ...space.obstacles];
-  const labelObstacles = [...obstacles, ...space.labelObstacles];
   const columns = [
     12,
     ...obstacles.flatMap((box) =>
@@ -326,11 +327,33 @@ export function routeRelations(
     const label = wrap(relation.label, 170, labelPath, 3, 12);
     const variants = [label];
     const gapX = Math.max(to.x - from.x - from.width, from.x - to.x - to.width);
+    const widths = [120, 80, gapX - 12];
+    const centerY = from.y + from.height / 2;
+    if (gapX > 0 && centerY === to.y + to.height / 2) {
+      const left = Math.min(from.x + from.width, to.x + to.width);
+      const right = Math.max(from.x, to.x);
+      let spans = [[left + 6, right - 6]];
+      for (const obstacle of space.labelObstacles) {
+        if (!crosses([left, centerY], [right, centerY], obstacle)) continue;
+        // The background extends 3px horizontally, with 2px border clearance.
+        const start = obstacle.x - 5;
+        const end = obstacle.x + obstacle.width + 5;
+        spans = spans.flatMap(([a, b]) =>
+          end <= a || start >= b
+            ? [[a, b]]
+            : [
+                [a, Math.min(b, start)],
+                [Math.max(a, end), b],
+              ].filter(([x, y]) => y > x),
+        );
+      }
+      widths.push(...spans.map(([a, b]) => b - a));
+    }
     const minWordWidth = Math.min(
       170,
-      Math.max(36, ...(relation.label.match(/[!-~]+/g) ?? []).map((word) => measure(word, 12))),
+      Math.max(24, ...(relation.label.match(/[!-~]+/g) ?? []).map((word) => measure(word, 12))),
     );
-    for (const width of new Set([120, 80, gapX - 12])) {
+    for (const width of new Set(widths)) {
       if (width < minWordWidth || width >= label.width) continue;
       const variant = wrap(relation.label, width, labelPath, Infinity, 12);
       if (
@@ -371,10 +394,12 @@ export function routeRelations(
           if (seen.has(key)) continue;
           seen.add(key);
           const labels = variants.flatMap((label) =>
-            labelPositions(points, label, labelObstacles, bounds).map((position) => ({
-              label,
-              position,
-            })),
+            labelPositions(points, label, obstacles, space.labelObstacles, bounds).map(
+              (position) => ({
+                label,
+                position,
+              }),
+            ),
           );
           if (labels.length) choices.push({ points, labels, cost: routeCost(points) });
         }

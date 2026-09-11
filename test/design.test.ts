@@ -17,4 +17,5 @@ test("tail balancing preserves explicit breaks and does not split words or excee
   assert.deepEqual(wrap("甲乙丙", 14, "label", 3).lines, ["甲", "乙", "丙"]);
   assert.deepEqual(wrap("消息数组", 28, "label", 2).lines, ["消息", "数组"]);
   assert.deepEqual(wrap("接口返回结果中", 84, "label", 2).lines, ["接口返回", "结果中"]);
+  assert.deepEqual(wrap("执行副作用", 24, "label", 3, 12).lines, ["执行", "副", "作用"]);
 });

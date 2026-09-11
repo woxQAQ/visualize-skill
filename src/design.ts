@@ -70,9 +70,12 @@ export function wrap(
       const word = [...words.segment(previous)].at(-1)!;
       const prefix = previous.slice(0, word.index).trimEnd();
       const tail = word.segment + lines[last];
+      // A short middle line is preferable to a lone final character, but
+      // balancing must not leave the first line with only one character.
+      const minimumPrefixLength = last - 1 === paragraphStart ? 2 : 1;
       if (
         /^\p{Script=Han}+$/u.test(word.segment) &&
-        graphemes(prefix).length > 1 &&
+        graphemes(prefix).length >= minimumPrefixLength &&
         measure(tail, size) <= width
       ) {
         lines[last - 1] = prefix;

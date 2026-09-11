@@ -211,6 +211,165 @@ test("cross-lane labels keep their backgrounds clear of swimlane separators", ()
   assert.equal(scene.edges.length, expense.relations.length);
 });
 
+function partitionConnections(sessionTitle = "session/ 会话与存储") {
+  const entry = entity({ id: "entry", label: "入口" });
+  const lane = entity({ id: "lane", label: "车道" });
+  const drive = entity({ id: "drive", label: "驱动" });
+  const execution = entity({ id: "execution", label: "执行层" });
+  const hooks = entity({ id: "hooks", label: "钩子" });
+  const session = entity({ id: "session", label: "会话" });
+  return architecture({
+    id: "partition-connections",
+    title: "跨分区连接",
+    partitions: [
+      {
+        id: "runtime",
+        label: "runtime/ 持久化运行时",
+        position: { x: 240, y: 0 },
+        size: { width: 320, height: 450 },
+      },
+      {
+        id: "session-store",
+        label: sessionTitle,
+        position: { x: 240, y: 510 },
+        size: { width: 600, height: 250 },
+      },
+    ],
+    nodes: [
+      { entity: entry, role: worker, position: { x: 0, y: 90 }, size: { width: 200, height: 100 } },
+      {
+        entity: lane,
+        role: worker,
+        partition: "runtime",
+        position: { x: 60, y: 20 },
+        size: { width: 200, height: 100 },
+      },
+      {
+        entity: drive,
+        role: worker,
+        partition: "runtime",
+        position: { x: 60, y: 240 },
+        size: { width: 200, height: 100 },
+      },
+      {
+        entity: execution,
+        role: worker,
+        position: { x: 572, y: 310 },
+        size: { width: 200, height: 100 },
+      },
+      {
+        entity: hooks,
+        role: worker,
+        position: { x: 572, y: 140 },
+        size: { width: 200, height: 100 },
+      },
+      {
+        entity: session,
+        role: worker,
+        partition: "session-store",
+        position: { x: 60, y: 40 },
+        size: { width: 200, height: 100 },
+      },
+    ],
+    relations: [
+      { id: "create-lane", from: entry, to: lane, label: "创建/恢复车道" },
+      { id: "lane-drive", from: lane, to: drive, label: "推进操作状态机" },
+      { id: "drive-exec", from: drive, to: execution, label: "执行副作用" },
+      { id: "drive-session", from: drive, to: session, label: "持久化操作状态" },
+      { id: "drive-hooks", from: drive, to: hooks, label: "触发生命周期钩子" },
+    ],
+  });
+}
+
+test("aligned cross-partition connections use border-side label space without moving nodes", () => {
+  const scene = compile(document().diagram(partitionConnections())).scenes[0];
+  assertRoutes(scene);
+  assertNoLongSharedSegments(scene.edges);
+  for (const [id, points] of [
+    [
+      "create-lane",
+      [
+        [232, 172],
+        [356, 172],
+      ],
+    ],
+    [
+      "drive-exec",
+      [
+        [556, 392],
+        [604, 392],
+      ],
+    ],
+    [
+      "drive-session",
+      [
+        [456, 442],
+        [456, 652],
+      ],
+    ],
+  ] as const) {
+    const edge = scene.edges.find((edge) => edge.id === id)!;
+    assert.deepEqual(edge.points, points, id);
+    assert.equal(edge.label.size, 12);
+    assert.ok(edge.label.lines.length <= 3);
+  }
+  assert.equal(
+    scene.edges.find((edge) => edge.id === "drive-exec")!.label.lines.join(""),
+    "执行副作用",
+  );
+  assert.deepEqual(
+    scene.nodes.map(({ x, y, width, height }) => [x, y, width, height]),
+    [
+      [32, 122, 200, 100],
+      [356, 122, 200, 100],
+      [356, 342, 200, 100],
+      [604, 342, 200, 100],
+      [604, 172, 200, 100],
+      [356, 652, 200, 100],
+    ],
+  );
+});
+
+test("connections still detour when the painted partition title blocks the straight path", () => {
+  const scene = compile(document().diagram(partitionConnections("session/ 会话与存储层")))
+    .scenes[0];
+  assertRoutes(scene);
+  const edge = scene.edges.find((edge) => edge.id === "drive-session")!;
+  assert.ok(edge.points.length > 2);
+  const title = { x: 296, y: 554, width: 162.12, height: 22 };
+  for (let i = 1; i < edge.points.length; i++) {
+    const [a, b] = [edge.points[i - 1], edge.points[i]];
+    assert.ok(
+      !(
+        a[0] === b[0] &&
+        a[0] > title.x - 8 &&
+        a[0] < title.x + title.width + 8 &&
+        Math.max(a[1], b[1]) > title.y - 8 &&
+        Math.min(a[1], b[1]) < title.y + title.height + 8
+      ),
+    );
+  }
+});
+
+test("narrow border-side space does not force English words into character columns", () => {
+  const { kind: _kind, ...chart } = partitionConnections();
+  const scene = compile(
+    document().diagram(
+      architecture({
+        ...chart,
+        relations: chart.relations.map((relation) =>
+          relation.id === "drive-exec" ? { ...relation, label: "execute tool" } : relation,
+        ),
+      }),
+    ),
+  ).scenes[0];
+  assertRoutes(scene);
+  const edge = scene.edges.find((edge) => edge.id === "drive-exec")!;
+  assert.ok(edge.points.length > 2);
+  assert.ok(edge.label.lines.some((line) => line.includes("execute")));
+  assert.ok(edge.label.lines.some((line) => line.includes("tool")));
+});
+
 test("relation declaration order does not change allocated routes or labels", () => {
   const forward = compile(document().diagram(agentOverview)).scenes[0];
   const { kind: _kind, ...options } = agentOverview;
