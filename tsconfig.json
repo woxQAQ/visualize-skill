@@ -8,21 +8,10 @@
     "verbatimModuleSyntax": true,
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true,
-    "lib": [
-      "ES2023",
-      "ES2022.Intl",
-      "DOM"
-    ],
-    "types": [
-      "node"
-    ],
+    "lib": ["ES2023", "ES2022.Intl", "DOM"],
+    "types": ["node"],
     "allowJs": true,
     "checkJs": true
   },
-  "include": [
-    "src/**/*.ts",
-    "examples/**/*.ts",
-    "test/**/*.ts",
-    "src/templates/*.js"
-  ]
+  "include": ["src/**/*.ts", "examples/**/*.ts", "test/**/*.ts", "src/templates/*.js"]
 }

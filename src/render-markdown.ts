@@ -1,46 +1,69 @@
-import { escape } from './markup.ts';
-import type { Inline, MarkdownBlock } from './model.ts';
+import { escape } from "./markup.ts";
+import type { Inline, MarkdownBlock } from "./model.ts";
 
 function inline(nodes: readonly Inline[]): string {
-  return nodes.map(node => {
-    switch (node.kind) {
-      case 'text': return escape(node.text);
-      case 'code': return `<code>${escape(node.text)}</code>`;
-      case 'strong': return `<strong>${inline(node.children)}</strong>`;
-      case 'emphasis': return `<em>${inline(node.children)}</em>`;
-      case 'break': return '<br>';
-      case 'link': {
-        const title = node.title ? ` title="${escape(node.title)}"` : '';
-        if (node.href.startsWith('entity:')) {
-          const target = `details-${node.href.slice(7)}`;
-          return `<a href="#${target}" data-entity-detail="${target}"${title}>${inline(node.children)}</a>`;
+  return nodes
+    .map((node) => {
+      switch (node.kind) {
+        case "text":
+          return escape(node.text);
+        case "code":
+          return `<code>${escape(node.text)}</code>`;
+        case "strong":
+          return `<strong>${inline(node.children)}</strong>`;
+        case "emphasis":
+          return `<em>${inline(node.children)}</em>`;
+        case "break":
+          return "<br>";
+        case "link": {
+          const title = node.title ? ` title="${escape(node.title)}"` : "";
+          if (node.href.startsWith("entity:")) {
+            const target = `details-${node.href.slice(7)}`;
+            return `<a href="#${target}" data-entity-detail="${target}"${title}>${inline(node.children)}</a>`;
+          }
+          const href = node.href.startsWith("diagram:")
+            ? `#diagram-${node.href.slice(8)}`
+            : node.href;
+          return `<a href="${escape(href)}"${title}>${inline(node.children)}</a>`;
         }
-        const href = node.href.startsWith('diagram:') ? `#diagram-${node.href.slice(8)}` : node.href;
-        return `<a href="${escape(href)}"${title}>${inline(node.children)}</a>`;
       }
-    }
-  }).join('');
+    })
+    .join("");
 }
 
-export function renderMarkdown(blocks: readonly MarkdownBlock[], nextHeading: () => number, tight = false): string {
-  return blocks.map(block => {
-    switch (block.kind) {
-      case 'paragraph': return tight ? inline(block.children) : `<p>${inline(block.children)}</p>`;
-      case 'heading': return `<h${block.level} id="heading-${nextHeading()}">${inline(block.children)}</h${block.level}>`;
-      case 'codeBlock': return `<pre><code${block.language ? ` data-language="${escape(block.language)}"` : ''}>${escape(block.text)}</code></pre>`;
-      case 'thematicBreak': return '<hr>';
-      case 'blockquote': return `<blockquote>${renderMarkdown(block.children, nextHeading)}</blockquote>`;
-      case 'table': {
-        const cells = (row: readonly (readonly Inline[])[], tag: 'th' | 'td') => row.map((cell, column) => {
-          const align = block.align[column];
-          return `<${tag}${tag === 'th' ? ' scope="col"' : ''}${align ? ` style="text-align:${align}"` : ''}>${inline(cell)}</${tag}>`;
-        }).join('');
-        return `<div class="table-scroll" tabindex="0" role="region" aria-label="表格，可横向滚动"><table class="markdown-table"><thead><tr>${cells(block.header, 'th')}</tr></thead><tbody>${block.rows.map(row => `<tr>${cells(row, 'td')}</tr>`).join('')}</tbody></table></div>`;
+export function renderMarkdown(
+  blocks: readonly MarkdownBlock[],
+  nextHeading: () => number,
+  tight = false,
+): string {
+  return blocks
+    .map((block) => {
+      switch (block.kind) {
+        case "paragraph":
+          return tight ? inline(block.children) : `<p>${inline(block.children)}</p>`;
+        case "heading":
+          return `<h${block.level} id="heading-${nextHeading()}">${inline(block.children)}</h${block.level}>`;
+        case "codeBlock":
+          return `<pre><code${block.language ? ` data-language="${escape(block.language)}"` : ""}>${escape(block.text)}</code></pre>`;
+        case "thematicBreak":
+          return "<hr>";
+        case "blockquote":
+          return `<blockquote>${renderMarkdown(block.children, nextHeading)}</blockquote>`;
+        case "table": {
+          const cells = (row: readonly (readonly Inline[])[], tag: "th" | "td") =>
+            row
+              .map((cell, column) => {
+                const align = block.align[column];
+                return `<${tag}${tag === "th" ? ' scope="col"' : ""}${align ? ` style="text-align:${align}"` : ""}>${inline(cell)}</${tag}>`;
+              })
+              .join("");
+          return `<div class="table-scroll" tabindex="0" role="region" aria-label="表格，可横向滚动"><table class="markdown-table"><thead><tr>${cells(block.header, "th")}</tr></thead><tbody>${block.rows.map((row) => `<tr>${cells(row, "td")}</tr>`).join("")}</tbody></table></div>`;
+        }
+        case "list": {
+          const tag = block.ordered ? "ol" : "ul";
+          return `<${tag}${block.ordered ? ` start="${block.start}"` : ""}>${block.items.map((item) => `<li>${renderMarkdown(item, nextHeading, block.tight)}</li>`).join("")}</${tag}>`;
+        }
       }
-      case 'list': {
-        const tag = block.ordered ? 'ol' : 'ul';
-        return `<${tag}${block.ordered ? ` start="${block.start}"` : ''}>${block.items.map(item => `<li>${renderMarkdown(item, nextHeading, block.tight)}</li>`).join('')}</${tag}>`;
-      }
-    }
-  }).join('\n');
+    })
+    .join("\n");
 }

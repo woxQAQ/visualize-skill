@@ -3,38 +3,55 @@
 `swimlane()` 表达活动在不同负责方之间如何流转。泳道从上到下排列，左侧显示负责的人、团队或系统，节点表示该负责方执行的活动。活动的 `role` 表示职责分类并决定颜色，`lane` 表示本图中的负责方归属。
 
 ```ts
-import { document, entity, role, swimlane } from '../src/index.ts';
+import { document, entity, role, swimlane } from "../src/index.ts";
 
-const activity = role({ id: 'activity', label: '流程活动' });
-const submit = entity({ id: 'submit', label: '提交申请' });
-const review = entity({ id: 'review', label: '审核申请' });
+const activity = role({ id: "activity", label: "流程活动" });
+const submit = entity({ id: "submit", label: "提交申请" });
+const review = entity({ id: "review", label: "审核申请" });
 
-export default document().diagram(swimlane({
-  id: 'approval-flow', title: '申请与审核', width: 800, headerWidth: 200,
-  lanes: [
-    { id: 'applicant', label: '申请人', height: 200 },
-    { id: 'reviewer', label: '审核人', height: 200 }
-  ],
-  nodes: [
-    { entity: submit, role: activity, lane: 'applicant', position: { x: 32, y: 40 }, size: { width: 180, height: 80 } },
-    { entity: review, role: activity, lane: 'reviewer', position: { x: 352, y: 40 }, size: { width: 180, height: 80 } }
-  ],
-  relations: [{ id: 'submit-review', from: submit, to: review, label: '提交审核' }]
-}));
+export default document().diagram(
+  swimlane({
+    id: "approval-flow",
+    title: "申请与审核",
+    width: 800,
+    headerWidth: 200,
+    lanes: [
+      { id: "applicant", label: "申请人", height: 200 },
+      { id: "reviewer", label: "审核人", height: 200 },
+    ],
+    nodes: [
+      {
+        entity: submit,
+        role: activity,
+        lane: "applicant",
+        position: { x: 32, y: 40 },
+        size: { width: 180, height: 80 },
+      },
+      {
+        entity: review,
+        role: activity,
+        lane: "reviewer",
+        position: { x: 352, y: 40 },
+        size: { width: 180, height: 80 },
+      },
+    ],
+    relations: [{ id: "submit-review", from: submit, to: review, label: "提交审核" }],
+  }),
+);
 ```
 
 导入路径以内容脚本所在目录为基准。包含分支、回退及同泳道流转的完整示例见 [swimlane.ts](../examples/swimlane.ts)。
 
 ## 声明
 
-| 字段 | 含义 |
-| --- | --- |
-| `id`、`title` | 图表标识和标题 |
-| `width` | 所有泳道共用的总宽度，包含左侧标题栏，不包含画布外边距 |
-| `headerWidth` | 所有泳道共用的左侧标题栏宽度，可选，默认 `144` |
-| `lanes` | 按从上到下的顺序声明泳道，每条包含 `id`、`label`、`height` |
-| `nodes` | 活动节点，每个包含 `entity`、`role`、`lane`、`position`、`size` |
-| `relations` | 流转关系，每条包含 `id`、`from`、`to`、`label`；允许空数组 |
+| 字段          | 含义                                                            |
+| ------------- | --------------------------------------------------------------- |
+| `id`、`title` | 图表标识和标题                                                  |
+| `width`       | 所有泳道共用的总宽度，包含左侧标题栏，不包含画布外边距          |
+| `headerWidth` | 所有泳道共用的左侧标题栏宽度，可选，默认 `144`                  |
+| `lanes`       | 按从上到下的顺序声明泳道，每条包含 `id`、`label`、`height`      |
+| `nodes`       | 活动节点，每个包含 `entity`、`role`、`lane`、`position`、`size` |
+| `relations`   | 流转关系，每条包含 `id`、`from`、`to`、`label`；允许空数组      |
 
 除 `headerWidth` 外，以上字段均必填。至少声明一条泳道和一个节点；每条泳道至少包含一个节点。泳道标识在当前图中唯一，名称为最多 48 字符的单行短文本，标题实际最多排 3 行。每个活动必须属于一条已声明的泳道，没有根节点或嵌套泳道。
 
@@ -45,6 +62,10 @@ export default document().diagram(swimlane({
 ## 坐标与尺寸
 
 节点的连接点固定为上、下、左、右四条边的中点。系统根据避障和标签空间选择连接侧，多条关系可以共用同一个中点；自循环连接同一节点的两个不同侧中点。
+
+路由和标签联合选择，优先减少长距离重叠，其次减少交叉和绕行；共同端点附近的 18 像素引线允许共用。调用和回流关系会尽量选择不同通道。关系声明顺序不决定通道分配，输出仍保留声明顺序。优化采用有限候选与有限重排，不能保证所有密集图都无重叠。
+
+关系文字及其背景避开泳道边框与分隔线；连线仍可跨泳道流转。
 
 一单位对应一个 CSS 像素。`position` 的 `x`、`y` 为非负有限数字，`width`、`headerWidth`、`height` 和节点尺寸为正有限数字。
 
@@ -59,5 +80,7 @@ export default document().diagram(swimlane({
 ## 容量与诊断
 
 每张图最多 12 个节点、16 条关系。节点名称最多 3 行，摘要最多 4 行，仍须满足声明尺寸。画布最大宽 1280、高 2600，包含四周边距，因此 `width` 最大为 1216，所有泳道高度之和最多为 2536。窄屏中图表横向滚动。
+
+画布宽度超过正文最大可用宽度 1064 时，`compile()` 和 CLI 返回 `READING_WIDTH` 提示，但不会阻止生成或改变声明尺寸。若希望在宽屏正文中完整展示，泳道 `width` 应不超过 1000，并相应调整活动坐标，为节点、标签和连线保留空间。
 
 泳道错误包括 `DUPLICATE_LANE`、`EMPTY_LANE`、`UNKNOWN_LANE`、`LANE_CONTENT_FIT`；节点重叠、文字和图表容量等沿用共用诊断。使用 `compile()` 或 CLI 的 `--check` 完整验证语义与布局。

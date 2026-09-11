@@ -1,0 +1,11 @@
+{
+  "overrides": [
+    {
+      "files": ["src/templates/*.html"],
+      "options": {
+        // Embedded script and style contents are template slots, not executable code.
+        "embeddedLanguageFormatting": "off",
+      },
+    },
+  ],
+}

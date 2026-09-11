@@ -2,21 +2,27 @@
   "name": "visualize-skills",
   "version": "0.1.0",
   "private": true,
-  "type": "module",
   "description": "Declare relationships and Markdown; generate consistent standalone HTML.",
+  "type": "module",
   "scripts": {
+    "lint": "oxlint",
+    "lint:fix": "oxlint --fix",
+    "fmt": "oxfmt",
+    "fmt:check": "oxfmt --check",
     "typecheck": "tsc --noEmit",
     "test": "pnpm typecheck && node --test test/*.test.ts",
     "example": "node src/cli.ts examples/self-explanation.ts -o output/self-explanation.html",
     "example:single": "node src/cli.ts examples/single.ts -o output/architecture.html",
     "example:swimlane": "node src/cli.ts examples/swimlane.ts -o output/swimlane.html"
   },
+  "devDependencies": {
+    "@types/node": "^22.20.1",
+    "oxfmt": "^0.67.0",
+    "oxlint": "^1.82.0",
+    "typescript": "^7.0.2"
+  },
   "engines": {
     "node": ">=22.18"
   },
-  "packageManager": "pnpm@11.18.0",
-  "devDependencies": {
-    "@types/node": "^22.20.1",
-    "typescript": "^7.0.2"
-  }
+  "packageManager": "pnpm@11.18.0"
 }
