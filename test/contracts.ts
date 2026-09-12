@@ -1,6 +1,6 @@
 // Compile-only checks: invalid declarations must fail before rendering.
-import { architecture, document, entity, role, sequence, swimlane } from "../src/index.ts";
-import type { SemanticDocument, Step } from "../src/index.ts";
+import { architecture, render, entity, role, sequence, swimlane } from "../src/index.ts";
+import type { SemanticDiagram, Step } from "../src/index.ts";
 
 const item = entity({ id: "item", label: "对象", tags: [{ id: "public", label: "公开" }] });
 const worker = role({ id: "worker", label: "处理者" });
@@ -39,8 +39,8 @@ sequence({
   // @ts-expect-error References use identifiers, not numeric indices.
   steps: [{ id: "return", from: item, to: item, label: "返回", replyTo: 1 }],
 });
-// @ts-expect-error Markdown input must be text.
-document().markdown({ description: "正文" });
+// @ts-expect-error Rendering accepts a diagram, not prose.
+render("正文");
 
 function inspectStep(step: Step): string {
   if (step.kind === "alternative") return step.branches[0].label;
@@ -48,12 +48,12 @@ function inspectStep(step: Step): string {
   // @ts-expect-error A call cannot be mistaken for a return.
   return step.replyTo;
 }
-function inspectDocument(value: SemanticDocument): void {
+function inspectDiagram(value: SemanticDiagram): void {
   // @ts-expect-error The serialized semantic model is immutable too.
-  value.blocks.push({ kind: "markdown", content: [] });
+  value.entities.push(item);
 }
 void inspectStep;
-void inspectDocument;
+void inspectDiagram;
 
 architecture({
   id: "bad-parent",

@@ -4,14 +4,13 @@ import {
   architecture,
   compile,
   DiagnosticError,
-  document,
   entity,
   render,
   role,
   swimlane,
 } from "../src/index.ts";
 import type { SwimlaneOptions } from "../src/index.ts";
-import report, { expense } from "../examples/swimlane.ts";
+import { expense } from "../examples/swimlane.ts";
 import { overlaps } from "../src/layout/routing.ts";
 
 const worker = role({ id: "worker", label: "处理者" });
@@ -47,15 +46,11 @@ const chart = (overrides: Partial<SwimlaneOptions> = {}) => swimlane({ ...option
 const hasCode = (code: string) => (error: unknown) =>
   error instanceof DiagnosticError &&
   error.diagnostics.some((d) => d.code === code && d.path && d.hint);
-const check = (overrides: Partial<SwimlaneOptions>) =>
-  compile(document().diagram(chart(overrides)));
+const check = (overrides: Partial<SwimlaneOptions>) => compile(chart(overrides));
 
 test("swimlanes preserve declared geometry and lane order independently of node order", () => {
   assert.equal(chart().headerWidth, 144);
-  const {
-    semantic,
-    scenes: [scene],
-  } = check({ nodes: [...options.nodes].reverse() });
+  const { semantic, scene } = check({ nodes: [...options.nodes].reverse() });
   assert.equal(scene.kind, "swimlane");
   if (scene.kind !== "swimlane") return;
   assert.deepEqual(
@@ -79,24 +74,21 @@ test("swimlanes preserve declared geometry and lane order independently of node 
     semantic.entities.map((item) => item.id),
     ["a", "b"],
   );
-  assert.equal(semantic.blocks[0].kind, "diagram");
-  assert.ok(Object.isFrozen(semantic.blocks[0].content));
+  assert.equal(semantic.chart.kind, "swimlane");
+  assert.ok(Object.isFrozen(semantic.chart));
 });
 
 test("custom header widths control title wrapping, node origins, rendering and routing bounds", () => {
-  const baseline = check({}).scenes[0];
+  const baseline = check({}).scene;
   for (const headerWidth of [96, 240]) {
     const delta = headerWidth - 144;
     const flow = chart({ headerWidth, width: options.width + delta });
-    const {
-      semantic,
-      scenes: [scene],
-    } = compile(document().diagram(flow));
+    const { semantic, scene } = compile(flow);
     assert.equal(scene.kind, "swimlane");
     if (scene.kind !== "swimlane") return;
-    const block = semantic.blocks[0];
-    assert.ok(block.kind === "diagram" && block.content.kind === "swimlane");
-    assert.equal(block.content.headerWidth, headerWidth);
+    const block = semantic.chart;
+    assert.ok(block.kind === "swimlane");
+    assert.equal(block.headerWidth, headerWidth);
     assert.ok(scene.lanes.every((lane) => lane.headerWidth === headerWidth));
     assert.deepEqual(
       scene.nodes.map((node) => [node.x, node.y, node.width, node.height]),
@@ -108,14 +100,14 @@ test("custom header widths control title wrapping, node origins, rendering and r
       assert.ok(edge.labelX + edge.label.width + 3 <= scene.width - 32);
     }
     assert.ok(
-      render(document().diagram(flow)).includes(
-        `<rect x="32" y="32" width="${headerWidth}" height="200" fill="#f4f5f6"`,
+      render(flow).includes(
+        `<rect x="32" y="32" width="${headerWidth}" height="200" fill="color-mix(in srgb, var(--foreground) 4%, var(--background))"`,
       ),
     );
   }
   const lanes = [{ ...options.lanes[0], label: "客户支持与订单审核协作团队" }, options.lanes[1]];
-  const narrow = check({ lanes }).scenes[0];
-  const wide = check({ lanes, headerWidth: 240, width: 896 }).scenes[0];
+  const narrow = check({ lanes }).scene;
+  const wide = check({ lanes, headerWidth: 240, width: 896 }).scene;
   assert.ok(narrow.kind === "swimlane" && wide.kind === "swimlane");
   assert.ok(narrow.lanes[0].title.lines.length > wide.lanes[0].title.lines.length);
   assert.equal(wide.lanes[0].title.lines.length, 1);
@@ -150,14 +142,15 @@ test("swimlane declarations copy and freeze caller data and retain shared identi
     })),
     relations: [],
   });
-  const doc = document().diagram(structure).diagram(flow);
+  const doc = flow;
+  assert.deepEqual(compile(structure).semantic.entities[0], compile(flow).semantic.entities[0]);
   const { semantic } = compile(doc);
   assert.equal(semantic.entities.filter((item) => item.id === "a").length, 1);
   assert.equal((render(doc).match(/id="details-a"/g) ?? []).length, 1);
 });
 
 test("branch and return routes stay inside the swimlane body without crossing nodes or headers", () => {
-  const [scene] = compile(report).scenes;
+  const { scene } = compile(expense);
   assert.equal(scene.kind, "swimlane");
   if (scene.kind !== "swimlane") return;
   assert.equal(scene.edges.length, 5);
@@ -195,14 +188,14 @@ test("branch and return routes stay inside the swimlane body without crossing no
       }
     }
   }
-  assert.deepEqual(compile(document().diagram(expense)).scenes[0], scene);
+  assert.deepEqual(compile(expense).scene, scene);
 });
 
 test("swimlane HTML has escaped lane titles, activity details, membership and navigation", () => {
   const flow = chart({
     lanes: [{ ...options.lanes[0], label: '<申请人> & "用户"' }, options.lanes[1]],
   });
-  const html = render(document().markdown("[提交](entity:a) [流程](diagram:flow)").diagram(flow));
+  const html = render(flow);
   assert.match(html, /data-lane="applicant"/);
   assert.match(html, /&lt;申请人&gt; &amp; &quot;用户&quot;/);
   assert.match(html, /<dt>所属泳道<\/dt><dd>&lt;申请人&gt;/);
@@ -210,10 +203,7 @@ test("swimlane HTML has escaped lane titles, activity details, membership and na
   assert.match(html, /data-locate-node="entity-flow-b"/);
   assert.match(html, /横向泳道表示负责的人或系统/);
   assert.doesNotMatch(html, /data-partition=|data-fragment=|\{\{\{/);
-  assert.equal(
-    html,
-    render(document().markdown("[提交](entity:a) [流程](diagram:flow)").diagram(flow)),
-  );
+  assert.equal(html, render(flow));
 });
 
 test("missing lanes, duplicate lanes, empty lanes and unknown membership produce diagnostics", () => {
@@ -352,13 +342,13 @@ test("swimlanes validate node and relation identities and forbid lanes as endpoi
 
 test("one-lane flows allow no relations, self loops and parallel relations", () => {
   const single = { lanes: [options.lanes[0]], nodes: [options.nodes[0]], relations: [] };
-  assert.equal(check(single).scenes[0].edges.length, 0);
+  assert.equal(check(single).scene.edges.length, 0);
   const loop = check({ ...single, relations: [{ id: "retry", from: a, to: a, label: "重试" }] })
-    .scenes[0].edges[0];
+    .scene.edges[0];
   assert.ok(loop.points.length >= 4);
   const scene = check({
     relations: [...options.relations, { id: "again", from: a, to: b, label: "补充说明" }],
-  }).scenes[0];
+  }).scene;
   assert.notDeepEqual(scene.edges[0].points, scene.edges[1].points);
 });
 

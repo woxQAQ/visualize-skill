@@ -1,5 +1,5 @@
 import type { Chart, LayoutContext, NodeLayout, Scene, TextLayout } from "./model.ts";
-import { theme, measure } from "./design.ts";
+import { theme, measure, nodeDetailsEnabled } from "./design.ts";
 import { escape, number } from "./markup.ts";
 
 function textBlock(
@@ -26,13 +26,13 @@ function frames(scene: Scene) {
     <g data-fragment="${frame.id}">
       <rect x="${frame.x}" y="${frame.y}" width="${frame.width}" height="${frame.height}"
         fill="none" stroke="${theme.line}"/>
-      <path d="M ${frame.x} ${frame.y} h 48 v 17 l -9 9 h -39 z" fill="#f4f5f6" stroke="${theme.line}"/>
-      <text x="${frame.x + 10}" y="${frame.y + 18}" font-size="12" font-weight="600">alt</text>
+      <path d="M ${frame.x} ${frame.y} h 48 v 17 l -9 9 h -39 z" fill="${theme.subtle}" stroke="${theme.line}"/>
+      <text x="${frame.x + 10}" y="${frame.y + 18}" font-size="12" font-weight="600" fill="${theme.ink}">alt</text>
       ${frame.branches
         .map(
           (branch, index) => `
         ${index ? `<path d="M ${frame.x} ${branch.y - 8} H ${frame.x + frame.width}" stroke="${theme.line}" stroke-dasharray="5 4"/>` : ""}
-        <rect x="${frame.x + 10}" y="${branch.y - 1}" width="${branch.label.width + 8}" height="${branch.label.height + 2}" fill="white"/>
+        <rect x="${frame.x + 10}" y="${branch.y - 1}" width="${branch.label.width + 8}" height="${branch.label.height + 2}" fill="${theme.surface}"/>
         ${textBlock(branch.label, frame.x + 14, branch.y, { fill: theme.muted })}
       `,
         )
@@ -51,8 +51,8 @@ function nodeMarkup(node: NodeLayout, chart: Chart, ctx: LayoutContext) {
   const textY = node.y + (node.height - textHeight) / 2;
   return `
     <g id="entity-${chart.id}-${node.id}" data-entity="${node.id}" data-role="${node.role}" style="--node-color:${color.ink}">
-      <a class="node-link" text-anchor="middle" href="#details-${node.id}" data-entity-detail="details-${node.id}" data-chart="${chart.id}"
-        aria-label="${escape(entity.label)}，查看详情" tabindex="0">
+      <a class="node-link" text-anchor="middle" ${nodeDetailsEnabled ? `href="#details-${node.id}"` : 'role="group"'} data-entity-detail="details-${node.id}" data-chart="${chart.id}"
+        aria-label="${escape(entity.label)}${nodeDetailsEnabled ? "，查看详情" : ""}" tabindex="0">
         <rect class="node-surface" x="${node.x}" y="${node.y}" width="${node.width}" height="${node.height}"
           rx="4" fill="${color.fill}" stroke="${color.ink}" stroke-width="2.5"/>
         ${textBlock(node.title, textX, textY, { weight: 600 })}
@@ -126,7 +126,7 @@ export function renderSvg(scene: Scene, chart: Chart, ctx: LayoutContext) {
       (partition) => `
     <g data-partition="${partition.id}" role="group" aria-label="${escape(partition.title.lines.join(""))}，逻辑分区">
       <rect x="${partition.x}" y="${partition.y}" width="${partition.width}" height="${partition.height}" rx="4"
-        fill="#fafbfc" stroke="${theme.line}" stroke-dasharray="6 4"/>
+        fill="${theme.subtle}" stroke="${theme.line}" stroke-dasharray="6 4"/>
       ${textBlock(partition.title, partition.x + 24, partition.y + 12, { fill: theme.muted, weight: 600 })}
     </g>
   `,
@@ -136,8 +136,8 @@ export function renderSvg(scene: Scene, chart: Chart, ctx: LayoutContext) {
     .map(
       (lane) => `
     <g data-lane="${lane.id}" role="group" aria-label="${escape(lane.title.lines.join(""))}，泳道">
-      <rect x="${lane.x}" y="${lane.y}" width="${lane.width}" height="${lane.height}" fill="white" stroke="${theme.line}"/>
-      <rect x="${lane.x}" y="${lane.y}" width="${lane.headerWidth}" height="${lane.height}" fill="#f4f5f6" stroke="${theme.line}"/>
+      <rect x="${lane.x}" y="${lane.y}" width="${lane.width}" height="${lane.height}" fill="${theme.surface}" stroke="${theme.line}"/>
+      <rect x="${lane.x}" y="${lane.y}" width="${lane.headerWidth}" height="${lane.height}" fill="${theme.subtle}" stroke="${theme.line}"/>
       ${textBlock(lane.title, lane.x + 16, lane.y + (lane.height - lane.title.height) / 2, { weight: 600 })}
     </g>
   `,
@@ -155,7 +155,7 @@ export function renderSvg(scene: Scene, chart: Chart, ctx: LayoutContext) {
       (bar) => `
     <rect data-activation="${bar.callId}" data-participant="${bar.entity}"
       x="${bar.x}" y="${bar.y}" width="${bar.width}" height="${bar.height}"
-      fill="white" stroke="${theme.ink}" stroke-width="1.2"/>
+      fill="${theme.surface}" stroke="${theme.ink}" stroke-width="1.2"/>
   `,
     )
     .join("");
@@ -172,7 +172,7 @@ export function renderSvg(scene: Scene, chart: Chart, ctx: LayoutContext) {
       (edge) => `
     <g data-relation-label="${edge.id}">
       <rect x="${number(edge.labelX - 3)}" y="${number(edge.labelY - 2)}" width="${number(edge.label.width + 6)}"
-        height="${edge.label.height + 4}" fill="white"/>
+        height="${edge.label.height + 4}" fill="${theme.surface}"/>
       ${textBlock(edge.label, edge.labelX, edge.labelY)}
     </g>
   `,
@@ -184,7 +184,7 @@ export function renderSvg(scene: Scene, chart: Chart, ctx: LayoutContext) {
       viewBox="0 0 ${scene.width} ${scene.height}" role="group"
       aria-labelledby="svg-title-${scene.id} svg-desc-${scene.id}" style="font-family:${theme.font};color:${theme.ink}">
       <title id="svg-title-${scene.id}">${escape(chart.title)}</title>
-      <desc id="svg-desc-${scene.id}">悬停或键盘聚焦节点时强调当前节点、直接相邻节点和相连关系，弱化其余节点与关系，点击节点或按 Enter 查看详细内容。${scene.kind === "sequence" ? "实线表示同步调用，虚线表示返回，生命线上的矩形表示执行区间。" : scene.kind === "swimlane" ? "横向泳道表示负责的人或系统，节点表示流程活动，箭头和标签表示流转方向与条件。" : "虚线框表示逻辑分区，箭头表示依赖，关系文字直接标注在线旁。"}</desc>
+      <desc id="svg-desc-${scene.id}">悬停或键盘聚焦节点时强调当前节点、直接相邻节点和相连关系，弱化其余节点与关系。${nodeDetailsEnabled ? "点击节点或按 Enter 查看详细内容。" : ""}${scene.kind === "sequence" ? "实线表示同步调用，虚线表示返回，生命线上的矩形表示执行区间。" : scene.kind === "swimlane" ? "横向泳道表示负责的人或系统，节点表示流程活动，箭头和标签表示流转方向与条件。" : "虚线框表示逻辑分区，箭头表示依赖，关系文字直接标注在线旁。"}</desc>
       <style>@media screen {
         #diagram-${scene.id} svg:has(.node-link:is(:hover,:focus-visible)) :is([data-entity],[data-relation],[data-relation-label]) { opacity:0.45; }
         ${nodeHighlights}${highlights}

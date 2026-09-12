@@ -1,4 +1,4 @@
-import { document, entity, role, swimlane } from "../src/index.ts";
+import { entity, role, swimlane } from "../src/index.ts";
 
 const submission = role({ id: "submission", label: "提交申请" });
 const review = role({ id: "review", label: "审核决定" });
@@ -69,10 +69,4 @@ export const expense = swimlane({
   ],
 });
 
-export default document()
-  .markdown(`# 报销如何跨角色流转
-
-每条泳道表示一个负责方，节点表示具体活动。沿箭头阅读：材料不全时退回补充，审核通过后交给财务付款。
-
-点击 [审核申请](entity:approve) 可查看所属泳道和关联活动。`)
-  .diagram(expense);
+export default expense;

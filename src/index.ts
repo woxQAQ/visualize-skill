@@ -1,8 +1,7 @@
-export { document, entity, role, architecture, sequence, swimlane } from "./sdk.ts";
+export { entity, role, architecture, sequence, swimlane } from "./sdk.ts";
 export { compile, render } from "./render.ts";
 export { DiagnosticError } from "./diagnostics.ts";
 
-export type { Document } from "./sdk.ts";
 export type {
   Participant,
   Entity,
@@ -16,7 +15,7 @@ export type {
   RelationInput,
   Diagram,
   Chart,
-  SemanticDocument,
+  SemanticDiagram,
   Scene,
 } from "./model.ts";
 export type {

@@ -1,24 +1,22 @@
-import type { LayoutContext, SemanticDocument, TextLayout } from "./model.ts";
+import type { LayoutContext, SemanticDiagram, TextLayout } from "./model.ts";
 import { freeze, fail } from "./diagnostics.ts";
 
 export const theme = freeze({
-  ink: "#252b30",
-  muted: "#5b646c",
-  line: "#707983",
-  border: "#c6ccd0",
+  ink: "var(--foreground)",
+  muted: "var(--muted-foreground)",
+  line: "var(--muted-foreground)",
+  border: "var(--border)",
+  surface: "var(--background)",
+  subtle: "color-mix(in srgb, var(--foreground) 4%, var(--background))",
   font: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
   fontSize: 14,
   lineHeight: 22,
   maxWidth: 1280,
   maxHeight: 2600,
-  palette: [
-    { ink: "#285c88", fill: "#edf4fa" },
-    { ink: "#855018", fill: "#fbf2e5" },
-    { ink: "#246757", fill: "#edf6f2" },
-    { ink: "#824568", fill: "#f8eff4" },
-    { ink: "#62509b", fill: "#f2eff8" },
-    { ink: "#555e68", fill: "#f0f2f4" },
-  ],
+  palette: Array.from({ length: 6 }, (_, index) => ({
+    ink: `var(--viz-series-${index + 1})`,
+    fill: `color-mix(in srgb, var(--viz-series-${index + 1}) 10%, var(--background))`,
+  })),
 });
 
 const segmenter = new Intl.Segmenter("en", { granularity: "grapheme" });
@@ -98,9 +96,11 @@ export function wrap(
   };
 }
 
-export function context(doc: SemanticDocument): LayoutContext {
+export function context(doc: SemanticDiagram): LayoutContext {
   return {
     entities: new Map(doc.entities.map((entity) => [entity.id, entity])),
     colors: new Map(doc.roles.map((role, index) => [role.id, theme.palette[index]])),
   };
 }
+// Retain node details for later use while keeping the current diagrams focused on relationships.
+export const nodeDetailsEnabled = false;

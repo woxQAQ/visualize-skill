@@ -17,7 +17,7 @@ test("templates escape text slots and insert generated markup without interpreti
   assert.match(html, /<svg><\/svg>/);
 });
 
-test("missing template values fail instead of producing an incomplete report", () => {
+test("missing template values fail instead of producing an incomplete diagram", () => {
   assert.throws(
     () => renderTemplate("figure", { id: "chart" }),
     /Missing template value: figure.title/,

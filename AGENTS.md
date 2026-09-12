@@ -3,10 +3,10 @@
 ## Project Structure & Module Organization
 
 - `src/index.ts` exposes the SDK; `sdk.ts` and `model.ts` define declarations and semantic data.
-- `src/layout/` computes diagram geometry and routing. Validation, Markdown parsing, and rendering live in separate `src/` modules.
+- `src/layout/` computes diagram geometry and routing. Validation and rendering live in separate `src/` modules.
 - `src/templates/` contains HTML templates, CSS, and browser interaction JavaScript.
 - `test/` contains runtime tests and TypeScript contract checks.
-- `examples/` contains runnable reports; generated HTML goes into ignored `output/`.
+- `examples/` contains runnable diagrams; generated HTML goes into ignored `output/`.
 - `SKILL.md` guides content authors, `references/` documents APIs by topic, and `docs/architecture.md` explains implementation decisions.
 
 ## Development Commands
@@ -16,18 +16,18 @@ Use Node.js 22.18+ and the pnpm version declared in `package.json`. Enter the Ni
 - `pnpm install --frozen-lockfile`: install development dependencies.
 - `pnpm typecheck`: run strict TypeScript checks without emitting files.
 - `pnpm test`: type-check, then run all Node tests.
-- `pnpm example`: generate the combined architecture and sequence report.
-- `pnpm example:single`: generate the standalone architecture diagram.
-- `pnpm example:swimlane`: generate the swimlane workflow report.
-- `node src/cli.ts examples/self-explanation.ts --check`: validate declarations and layout without writing HTML.
+- `pnpm example`: generate the architecture diagram fragment.
+- `pnpm example:sequence`: generate the sequence diagram fragment.
+- `pnpm example:swimlane`: generate the swimlane diagram fragment.
+- `node src/cli.ts examples/architecture.ts --check`: validate declarations and layout without writing HTML.
 
-There is no build step. Node runs TypeScript source directly; report generation requires no third-party runtime dependencies.
+There is no build step. Node runs TypeScript source directly; diagram generation requires no third-party runtime dependencies.
 
 ## Coding Style & Naming Conventions
 
 Follow existing two-space indentation, single quotes, and semicolons. Use explicit `.ts` extensions for local imports and `import type` for type-only imports. Keep TypeScript compatible with type stripping. Browser JavaScript uses JSDoc and participates in strict checking.
 
-Use lowercase hyphenated declaration identifiers, such as `order-api`. Preserve immutable declarations and explicit geometry. `ArchitecturePartition` belongs only to architecture diagrams and groups components by shared responsibility or membership; it is not an entity or relation endpoint. Each diagram type owns its organization model. Avoid speculative abstractions and dependencies. No formatter or linter is configured.
+Use lowercase hyphenated declaration identifiers, such as `order-api`. Preserve immutable declarations and explicit geometry in `compile()`. Rendering prepares separate compact layouts for container widths without shrinking text. `ArchitecturePartition` belongs only to architecture diagrams and groups components by shared responsibility or membership; it is not an entity or relation endpoint. Each diagram type owns its organization model. Avoid speculative abstractions and dependencies. Use `pnpm lint` and `pnpm fmt:check` for the configured lint and format checks.
 
 ## Testing Guidelines
 

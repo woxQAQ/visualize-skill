@@ -1,10 +1,16 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { architecture, document, entity, render, role, swimlane } from "../src/index.ts";
-import { overview, generation } from "../examples/self-explanation.ts";
+import { architecture, entity, render, role, swimlane } from "../src/index.ts";
+import { overview } from "../examples/architecture.ts";
+import { generation } from "../examples/sequence.ts";
 import { expense } from "../examples/swimlane.ts";
 
+function wideSvg(html: string) {
+  return html.match(/<svg\b[^]*?<\/svg>/)![0];
+}
+
 function highlights(html: string) {
+  html = wideSvg(html);
   return [...html.matchAll(/([^\n]+) \[data-relation="([^"]+)"\] \{([^}]+)\}/g)].map(
     ([, selector, id, declarations]) => ({
       selector: selector.trim(),
@@ -16,6 +22,7 @@ function highlights(html: string) {
 }
 
 function nodeHighlights(html: string) {
+  html = wideSvg(html);
   return [...html.matchAll(/([^\n]+) \[data-entity="([^"]+)"\] \{([^}]+)\}/g)].map(
     ([, selector, id, declarations]) => ({
       selector: selector.trim(),
@@ -33,7 +40,7 @@ test("node emphasis includes direct neighbors without propagating through the gr
     { chart: expense, active: "approve", visible: ["submit", "revise", "approve", "pay"] },
   ];
   for (const { chart, active, visible } of cases) {
-    const html = render(document().diagram(chart));
+    const html = render(chart);
     const rules = nodeHighlights(html);
     assert.deepEqual(
       rules.filter((rule) => rule.triggers.includes(active)).map((rule) => rule.id),
@@ -71,7 +78,7 @@ test("isolated nodes still emphasize themselves and dim other nodes without any 
     })),
     relations: [],
   });
-  const html = render(document().diagram(chart));
+  const html = render(chart);
   assert.deepEqual(
     nodeHighlights(html).map(({ id, triggers }) => ({ id, triggers })),
     [
@@ -106,9 +113,11 @@ test("every diagram highlights direct incoming and outgoing relations from eithe
     },
   ];
   for (const { chart, relations } of cases) {
-    const html = render(document().diagram(chart));
+    const html = render(chart);
     const rules = highlights(html);
-    const paths = [...html.matchAll(/<path data-relation="([^"]+)"/g)].map((match) => match[1]);
+    const paths = [...wideSvg(html).matchAll(/<path data-relation="([^"]+)"/g)].map(
+      (match) => match[1],
+    );
     assert.deepEqual(
       rules.map((rule) => rule.id),
       paths,
@@ -122,12 +131,12 @@ test("every diagram highlights direct incoming and outgoing relations from eithe
         (rule.selector.match(/:is\(:hover,:focus-visible\)/g) ?? []).length,
         endpoints.length,
       );
-      assert.match(rule.declarations, /stroke:#285c88;stroke-width:2.5/);
+      assert.match(rule.declarations, /stroke:var\(--viz-series-1\);stroke-width:2.5/);
       assert.match(rule.declarations, /opacity:1/);
       assert.ok(html.includes(`${rule.selector} [data-relation-label="${id}"] { opacity:1; }`));
       assert.ok(
         html.includes(
-          `${rule.selector} [data-relation-label="${id}"] text { fill:#285c88;font-weight:600; }`,
+          `${rule.selector} [data-relation-label="${id}"] text { fill:var(--viz-series-1);font-weight:600; }`,
         ),
       );
       assert.ok(html.includes(`<g data-relation-label="${id}">`));
@@ -138,7 +147,7 @@ test("every diagram highlights direct incoming and outgoing relations from eithe
 });
 
 test("sequence self calls and returns retain their arrow and dashed-line semantics when highlighted", () => {
-  const html = render(document().diagram(generation));
+  const html = render(generation);
   const rules = highlights(html);
   const self = rules.find((rule) => rule.id === "assemble-properties")!;
   assert.deepEqual(self.endpoints, ["renderer"]);
@@ -152,13 +161,13 @@ test("sequence self calls and returns retain their arrow and dashed-line semanti
   );
   assert.match(
     html,
-    /<marker id="highlight-return-arrow-generation-sequence"[^>]*>\s*<path[^>]*fill="none" stroke="#285c88"/,
+    /<marker id="highlight-return-arrow-generation-sequence"[^>]*>\s*<path[^>]*fill="none" stroke="var\(--viz-series-1\)"/,
   );
   assert.ok(rules.every((rule) => !rule.declarations.includes("stroke-dasharray")));
 });
 
 test("return arrow geometry is fixed, padded and continuously connected in both highlight states", () => {
-  const html = render(document().diagram(generation));
+  const html = render(generation);
   const markers = new Map(
     [...html.matchAll(/<marker id="([^"]+)"([^]*?)<\/marker>/g)].map(([, id, content]) => [
       id,
@@ -199,7 +208,7 @@ test("highlight selectors remain local when charts reuse entities and relation i
     nodes: expense.nodes,
     relations: expense.relations,
   });
-  const html = render(document().diagram(expense).diagram(copy));
+  const html = [render(expense), render(copy)].join("\n");
   const figures = [...html.matchAll(/<figure id="diagram-([^"]+)"[^]*?<\/figure>/g)];
   assert.equal(figures.length, 2);
   for (const [figure, id] of figures) {

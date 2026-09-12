@@ -3,33 +3,31 @@ import assert from "node:assert/strict";
 import { mkdtemp, readFile, writeFile, rm, realpath, mkdir } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve, relative, dirname } from "node:path";
-import { pathToFileURL } from "node:url";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 
 const exec = promisify(execFile);
 const cli = resolve("src/cli.ts");
-const sdk = pathToFileURL(resolve("src/index.ts")).href;
 
 test("CLI resolves command paths from cwd and relative imports from the content script", async (t) => {
   const dir = await realpath(await mkdtemp(join(tmpdir(), "visualize-cli-")));
   t.after(() => rm(dir, { recursive: true, force: true }));
   await mkdir(join(dir, "content"));
-  const input = join(dir, "content", "report.ts");
-  const output = join(dir, "nested", "report.html");
+  const input = join(dir, "content", "diagram.ts");
+  const output = join(dir, "nested", "diagram.html");
   const relativeSdk = relative(dirname(input), resolve("src/index.ts"));
   const relativeCli = relative(dir, cli);
   await writeFile(
     input,
-    `import {document} from ${JSON.stringify(relativeSdk)}; const title: string = '# 实际调用'; export default document().markdown(title);`,
+    `import {architecture, entity, role} from ${JSON.stringify(relativeSdk)}; const title: string = '实际调用'; export default architecture({ id: 'actual', title, nodes: [{ entity: entity({ id: 'item', label: '对象' }), role: role({ id: 'worker', label: '处理者' }), position: { x: 0, y: 0 }, size: { width: 220, height: 88 } }], relations: [] });`,
   );
-  const check = await exec(process.execPath, [relativeCli, "content/report.ts", "--check"], {
+  const check = await exec(process.execPath, [relativeCli, "content/diagram.ts", "--check"], {
     cwd: dir,
   });
-  assert.deepEqual(JSON.parse(check.stdout), { ok: true, diagrams: 0 });
+  assert.deepEqual(JSON.parse(check.stdout), { ok: true, diagram: "actual" });
   const build = await exec(
     process.execPath,
-    [relativeCli, "content/report.ts", "-o", "nested/report.html"],
+    [relativeCli, "content/diagram.ts", "-o", "nested/diagram.html"],
     { cwd: dir },
   );
   assert.equal(JSON.parse(build.stdout).output, output);
@@ -40,12 +38,9 @@ test("CLI reports diagnostics and preserves the previous output on failure", asy
   const dir = await mkdtemp(join(tmpdir(), "visualize-failure-"));
   t.after(() => rm(dir, { recursive: true, force: true }));
   const input = join(dir, "bad.mjs"),
-    output = join(dir, "report.html");
-  await writeFile(
-    input,
-    `import {document} from ${JSON.stringify(sdk)}; export default document();`,
-  );
-  await writeFile(output, "previous report");
+    output = join(dir, "diagram.html");
+  await writeFile(input, `export default { kind: "architecture", id: "invalid" };`);
+  await writeFile(output, "previous fragment");
   await assert.rejects(
     exec(process.execPath, [cli, input, "-o", output]),
     (error) =>
@@ -54,7 +49,7 @@ test("CLI reports diagnostics and preserves the previous output on failure", asy
       error.code === 1 &&
       "stderr" in error &&
       typeof error.stderr === "string" &&
-      JSON.parse(error.stderr).diagnostics[0].code === "EMPTY_DOCUMENT",
+      JSON.parse(error.stderr).diagnostics[0].code === "INVALID_DIAGRAM",
   );
-  assert.equal(await readFile(output, "utf8"), "previous report");
+  assert.equal(await readFile(output, "utf8"), "previous fragment");
 });

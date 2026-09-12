@@ -8,7 +8,6 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import * as sdk from "../src/index.ts";
 import {
-  document,
   entity,
   role,
   architecture,
@@ -17,7 +16,8 @@ import {
   render,
   DiagnosticError,
 } from "../src/index.ts";
-import report, { overview, generation } from "../examples/self-explanation.ts";
+import { overview } from "../examples/architecture.ts";
+import { generation } from "../examples/sequence.ts";
 import { wrap, measure } from "../src/design.ts";
 
 const worker = role({ id: "worker", label: "处理者" });
@@ -47,30 +47,15 @@ const hasCode = (code: string) => (error: unknown) =>
   error instanceof DiagnosticError &&
   error.diagnostics.some((d) => d.code === code && d.path && d.hint);
 
-test("self explanation uses architecture and sequence with serializable shared tags", () => {
-  const { semantic, scenes } = compile(report);
-  assert.deepEqual(
-    scenes.map((scene) => scene.kind),
-    ["architecture", "sequence"],
-  );
-  assert.equal(semantic.entities.filter((entity) => entity.id === "sdk").length, 1);
-  assert.ok(semantic.entities.find((entity) => entity.id === "skill")!.tags.length > 0);
-  assert.deepEqual(JSON.parse(JSON.stringify(semantic)), semantic);
-  assert.deepEqual(
-    Object.keys(sdk).sort(),
-    [
-      "DiagnosticError",
-      "architecture",
-      "compile",
-      "document",
-      "entity",
-      "render",
-      "role",
-      "sequence",
-      "swimlane",
-    ].sort(),
-  );
-  for (const scene of scenes) {
+test("each diagram compiles to immutable serializable semantics and geometry", () => {
+  for (const diagram of [overview, generation]) {
+    const { semantic, scene } = compile(diagram);
+    assert.equal(scene.kind, diagram.kind);
+    assert.equal(semantic.entities.filter((entity) => entity.id === "sdk").length, 1);
+    assert.deepEqual(JSON.parse(JSON.stringify(semantic)), semantic);
+    assert.ok(Object.isFrozen(diagram));
+    assert.ok(Object.isFrozen(semantic.chart));
+    assert.throws(() => Object.defineProperty(semantic.entities, "0", { value: {} }), TypeError);
     for (const node of scene.nodes) {
       assert.ok(node.x >= 0 && node.y >= 0);
       assert.ok(node.x + node.width <= scene.width);
@@ -79,85 +64,63 @@ test("self explanation uses architecture and sequence with serializable shared t
     }
     for (const edge of scene.edges) assert.ok(edge.labelX + edge.label.width <= scene.width);
   }
-});
-
-test("chain branches are independent and diagram creation does not append content", () => {
-  const base = document().markdown("# 标题");
-  const unused = chart();
-  const left = base.diagram(unused);
-  const right = base.markdown("另外一段");
-  assert.equal(base.toJSON().blocks.length, 1);
-  assert.equal(left.toJSON().blocks[1].kind, "diagram");
-  assert.equal(right.toJSON().blocks[1].kind, "markdown");
-  assert.throws(() => {
-    Object.defineProperty(left.toJSON().blocks, "0", { value: {} });
-  }, TypeError);
-});
-
-test("single diagram retains the same geometry and interactive node articles", () => {
-  const single = document().diagram(overview);
-  assert.deepEqual(compile(single).scenes[0], compile(report).scenes[0]);
-  const html = render(single);
-  assert.match(html, /<main class="single">/);
-  assert.match(html, /id="details-skill"/);
-  assert.match(html, /<dialog id="node-details"/);
-});
-
-test("output is deterministic and only contains the owned interaction script", () => {
-  const html = render(report);
-  assert.equal(html, render(report));
-  assert.doesNotMatch(html, /<link|<iframe|<img|\bsrc=/i);
-  assert.equal((html.match(/<script\b/g) ?? []).length, 1);
-  assert.match(html, /<script data-visualize-interaction>/);
-  assert.equal((html.match(/<svg /g) ?? []).length, 2);
-  assert.doesNotMatch(html, /查看对象与关系的文字说明/);
-});
-
-test("all fragment links resolve and each shared detail article occurs only once", () => {
-  const html = render(report);
-  const ids = [...html.matchAll(/\bid="([^"]+)"/g)].map((match) => match[1]);
-  assert.equal(ids.length, new Set(ids).size);
-  for (const [, id] of html.matchAll(/href="#([^"]+)"/g)) assert.ok(ids.includes(id), id);
-  assert.equal((html.match(/id="details-sdk"/g) ?? []).length, 1);
-  assert.ok((html.match(/data-entity-detail="details-sdk"/g) ?? []).length >= 2);
-});
-
-test("detail links locate related nodes in their chart and shared nodes across charts", () => {
-  const html = render(report);
-  for (const id of ["system-architecture", "generation-sequence"]) {
-    assert.match(html, new RegExp(`data-entity-detail="details-sdk" data-chart="${id}"`));
-    assert.match(html, new RegExp(`<section class="entity-context" data-detail-chart="${id}">`));
-    assert.match(html, new RegExp(`href="#entity-${id}-sdk" data-locate-node="entity-${id}-sdk"`));
-  }
-  assert.doesNotMatch(html, /<h3><a href="#diagram-/);
-  assert.doesNotMatch(html, /data-detail-back/);
-  const articles = [...html.matchAll(/<article id="details-[^]*?<\/article>/g)];
-  for (const [article] of articles) {
-    assert.doesNotMatch(article, /data-entity-detail=/);
-    for (const [, chartId, section] of article.matchAll(
-      /data-detail-chart="([^"]+)"([^]*?)<\/section>/g,
-    )) {
-      for (const [, target] of section.matchAll(/data-locate-node="([^"]+)"/g)) {
-        assert.ok(target.startsWith(`entity-${chartId}-`), target);
-      }
-    }
-  }
-  assert.match(
-    html,
-    /href="#entity-system-architecture-layout" data-locate-node="entity-system-architecture-layout" title="在当前图中定位此节点">图表布局<\/a>/,
+  assert.deepEqual(
+    Object.keys(sdk).sort(),
+    [
+      "DiagnosticError",
+      "architecture",
+      "compile",
+      "entity",
+      "render",
+      "role",
+      "sequence",
+      "swimlane",
+    ].sort(),
   );
-  const selfRelation = render(
-    document().diagram(
-      timeline([
-        { id: "self", from: a, to: a, label: "内部处理" },
-        { id: "done", from: a, to: a, label: "完成", replyTo: "self" },
-      ]),
+});
+
+test("render produces a deterministic self-contained fragment with host theme tokens", () => {
+  const html = render(overview);
+  assert.equal(html, render(overview));
+  assert.doesNotMatch(html, /<!doctype|<html|<head[ >]|<body|<main|<link|<iframe|<img|\bsrc=/i);
+  assert.equal((html.match(/<script\b/g) ?? []).length, 1);
+  assert.ok((html.match(/<svg /g) ?? []).length > 1);
+  assert.match(html, /data-responsive-layout/);
+  assert.match(html, /id="visualize-system-architecture" class="diagram-widget"/);
+  assert.match(html, /<div class="node-details" data-details popover="auto" role="dialog"/);
+  assert.doesNotMatch(html, /<dialog|showModal|::backdrop/);
+  assert.doesNotMatch(
+    html,
+    /color-scheme:\s*(?:light|dark)\b|#[\da-f]{3,8}\b|fill="(?:white|black)"/i,
+  );
+  assert.ok(
+    html.includes(
+      'fill="color-mix(in srgb, var(--viz-series-1) 10%, var(--background))" stroke="var(--viz-series-1)"',
     ),
+  );
+  assert.match(html, /var\(--foreground\)/);
+  assert.match(html, /var\(--background\)/);
+});
+
+test("node and relation links resolve within the fragment", () => {
+  for (const diagram of [overview, generation]) {
+    const html = render(diagram);
+    const ids = [...html.matchAll(/\bid="([^"]+)"/g)].map((match) => match[1]);
+    assert.equal(ids.length, new Set(ids).size);
+    for (const [, id] of html.matchAll(/href="#([^"]+)"/g)) assert.ok(ids.includes(id), id);
+    assert.equal((html.match(/id="details-sdk"/g) ?? []).length, 1);
+    assert.match(html, /data-locate-node=/);
+  }
+  const selfRelation = render(
+    timeline([
+      { id: "self", from: a, to: a, label: "内部处理" },
+      { id: "done", from: a, to: a, label: "完成", replyTo: "self" },
+    ]),
   );
   assert.match(selfRelation, /<td>内部<\/td><td>服务 A<\/td>/);
 });
 
-test("tags render as structured properties without changing geometry or parsing Markdown", () => {
+test("tags render as literal structured properties without changing geometry", () => {
   const detailed = entity({
     id: "a",
     label: "服务 A",
@@ -166,9 +129,9 @@ test("tags render as structured properties without changing geometry or parsing 
       { id: "safe", label: "<b>文字</b>" },
     ],
   });
-  const first = compile(document().diagram(chart())).scenes[0];
-  const tagged = document().diagram(chart({ nodes: [appearance(detailed), appearance(b, 340)] }));
-  const second = compile(tagged).scenes[0];
+  const first = compile(chart()).scene;
+  const tagged = chart({ nodes: [appearance(detailed), appearance(b, 340)] });
+  const second = compile(tagged).scene;
   assert.deepEqual(first, second);
   const html = render(tagged);
   assert.match(html, /<li data-tag="public">\*\*公开接口\*\*<\/li>/);
@@ -220,9 +183,8 @@ test("node properties reject arbitrary bodies and enforce short classification l
 
 test("shared entity and tag identifiers cannot have conflicting definitions", () => {
   const revised = entity({ id: "a", label: "服务 A", tags: [{ id: "public", label: "公开接口" }] });
-  const second = chart({ id: "second", nodes: [appearance(revised)], relations: [] });
   assert.throws(
-    () => compile(document().diagram(chart()).diagram(second)),
+    () => compile(chart({ nodes: [appearance(a), appearance(revised, 340)], relations: [] })),
     hasCode("IDENTITY_CONFLICT"),
   );
   const conflicting = entity({
@@ -231,10 +193,7 @@ test("shared entity and tag identifiers cannot have conflicting definitions", ()
     tags: [{ id: "public", label: "内部接口" }],
   });
   assert.throws(
-    () =>
-      compile(
-        document().diagram(chart({ nodes: [appearance(revised), appearance(conflicting, 340)] })),
-      ),
+    () => compile(chart({ nodes: [appearance(revised), appearance(conflicting, 340)] })),
     hasCode("TAG_IDENTITY_CONFLICT"),
   );
 });
@@ -251,13 +210,12 @@ test("architecture partitions are local component groups with explicit geometry"
     nodes: [appearance(b, 40, 60, "zone")],
     relations: [],
   });
-  const doc = document().diagram(grouped);
-  const { semantic, scenes } = compile(doc);
+  const doc = grouped;
+  const { semantic, scene } = compile(doc);
   assert.deepEqual(
     semantic.entities.map((entity) => entity.id),
     ["b"],
   );
-  const scene = scenes[0];
   assert.ok(scene.kind === "architecture");
   const [region] = scene.partitions;
   const [child] = scene.nodes;
@@ -268,7 +226,6 @@ test("architecture partitions are local component groups with explicit geometry"
   assert.match(html, /data-partition="zone"/);
   assert.match(html, /<dt>所属分区<\/dt><dd>逻辑区域<\/dd>/);
   assert.doesNotMatch(html, /data-entity="zone"|details-zone/);
-  assert.throws(() => compile(doc.markdown("[区域](entity:zone)")), hasCode("UNKNOWN_REFERENCE"));
 });
 
 test("invalid coordinates and overlapping siblings produce actionable diagnostics", () => {
@@ -280,7 +237,7 @@ test("invalid coordinates and overlapping siblings produce actionable diagnostic
     );
   }
   assert.throws(
-    () => compile(document().diagram(chart({ nodes: [appearance(a), appearance(b, 100)] }))),
+    () => compile(chart({ nodes: [appearance(a), appearance(b, 100)] })),
     hasCode("NODE_OVERLAP"),
   );
 });
@@ -321,9 +278,9 @@ test("explicit positions are rejected on sequence participants and arbitrary vis
     hasCode("UNKNOWN_FIELD"),
   );
   // @ts-expect-error Deliberately invalid input also exercises the JavaScript runtime boundary.
-  assert.throws(() => document().diagram({ kind: "architecture" }), hasCode("INVALID_DIAGRAM"));
+  assert.throws(() => compile({ kind: "architecture" }), hasCode("INVALID_DIAGRAM"));
   // @ts-expect-error Deliberately invalid input also exercises the JavaScript runtime boundary.
-  assert.throws(() => render({ blocks: [] }), hasCode("INVALID_DOCUMENT"));
+  assert.throws(() => render({}), hasCode("INVALID_DIAGRAM"));
 });
 
 test("declared width and height are preserved for architecture and sequence appearances", () => {
@@ -338,14 +295,14 @@ test("declared width and height are preserved for architecture and sequence appe
     ],
     steps: [relation, returned],
   });
-  const { semantic, scenes } = compile(document().diagram(arch).diagram(seq));
-  const firstBlock = semantic.blocks[0];
-  assert.ok(firstBlock.kind === "diagram" && firstBlock.content.kind === "architecture");
+  const { semantic } = compile(arch);
+  const scenes = [compile(arch).scene, compile(seq).scene];
+  assert.ok(semantic.chart.kind === "architecture");
   for (const scene of scenes) {
     assert.equal(scene.nodes[0].width, 260);
     assert.equal(scene.nodes[0].height, 100);
   }
-  assert.deepEqual(firstBlock.content.nodes[0].size, size);
+  assert.deepEqual(semantic.chart.nodes[0].size, size);
   assert.ok(scenes[1].kind === "sequence");
   assert.equal(scenes[1].nodes[1].x, scenes[1].nodes[0].x + 260 + 40);
   assert.equal(scenes[1].nodes[1].height, 60);
@@ -388,28 +345,25 @@ test("invalid sizes and content that cannot fit are diagnosed without resizing",
     { width: 220, height: 20 },
   ]) {
     assert.throws(
-      () =>
-        compile(document().diagram(chart({ nodes: [{ ...appearance(a), size }], relations: [] }))),
+      () => compile(chart({ nodes: [{ ...appearance(a), size }], relations: [] })),
       hasCode("NODE_CONTENT_FIT"),
     );
   }
   assert.throws(
     () =>
       compile(
-        document().diagram(
-          chart({
-            partitions: [
-              {
-                id: "small",
-                label: "区域",
-                position: { x: 0, y: 0 },
-                size: { width: 220, height: 88 },
-              },
-            ],
-            nodes: [appearance(a, 0, 0, "small")],
-            relations: [],
-          }),
-        ),
+        chart({
+          partitions: [
+            {
+              id: "small",
+              label: "区域",
+              position: { x: 0, y: 0 },
+              size: { width: 220, height: 88 },
+            },
+          ],
+          nodes: [appearance(a, 0, 0, "small")],
+          relations: [],
+        }),
       ),
     hasCode("PARTITION_CONTENT_FIT"),
   );
@@ -425,7 +379,7 @@ test("single participant self calls keep labels and loops within the canvas", ()
       { id: "return", from: a, to: a, label: "完成", replyTo: "call" },
     ],
   });
-  const scene = compile(document().diagram(seq)).scenes[0];
+  const scene = compile(seq).scene;
   assert.ok(scene.kind === "sequence");
   for (const edge of scene.edges) {
     assert.ok(edge.labelX + edge.label.width <= scene.width);
@@ -440,11 +394,11 @@ test("same entity can assume different local roles and positions", () => {
     nodes: [{ ...appearance(a, 100, 50), role: caller }],
     relations: [],
   });
-  const result = compile(document().diagram(chart()).diagram(second));
-  assert.equal(result.semantic.entities.length, 2);
-  assert.equal(result.scenes[0].nodes[0].role, "worker");
-  assert.equal(result.scenes[1].nodes[0].role, "caller");
-  assert.equal(result.scenes[1].nodes[0].x - result.scenes[0].nodes[0].x, 100);
+  const first = compile(chart()).scene;
+  const next = compile(second).scene;
+  assert.equal(first.nodes[0].role, "worker");
+  assert.equal(next.nodes[0].role, "caller");
+  assert.equal(next.nodes[0].x - first.nodes[0].x, 100);
 });
 
 test("missing endpoints are diagnosed together before layout", () => {
@@ -452,7 +406,7 @@ test("missing endpoints are diagnosed together before layout", () => {
     relations: [{ id: "bad", from: "missing-a", to: "missing-b", label: "请求" }],
   });
   assert.throws(
-    () => compile(document().diagram(invalid)),
+    () => compile(invalid),
     (error) =>
       error instanceof DiagnosticError &&
       error.diagnostics.filter((d) => d.code === "UNKNOWN_ENDPOINT").length === 2,
@@ -461,10 +415,7 @@ test("missing endpoints are diagnosed together before layout", () => {
 
 test("partition membership is validated while dependency cycles remain valid", () => {
   assert.throws(
-    () =>
-      compile(
-        document().diagram(chart({ nodes: [appearance(a, 0, 0, "missing")], relations: [] })),
-      ),
+    () => compile(chart({ nodes: [appearance(a, 0, 0, "missing")], relations: [] })),
     hasCode("UNKNOWN_PARTITION"),
   );
   const zone: ArchitecturePartition = {
@@ -478,16 +429,12 @@ test("partition membership is validated while dependency cycles remain valid", (
     nodes: [appearance(a, 0, 0, "zone"), appearance(b, 340, 0, "zone")],
   };
   assert.throws(
-    () => compile(document().diagram(chart({ ...grouped, partitions: [zone, zone] }))),
+    () => compile(chart({ ...grouped, partitions: [zone, zone] })),
     hasCode("DUPLICATE_PARTITION"),
   );
+  assert.throws(() => compile(chart({ partitions: [zone] })), hasCode("EMPTY_PARTITION"));
   assert.throws(
-    () => compile(document().diagram(chart({ partitions: [zone] }))),
-    hasCode("EMPTY_PARTITION"),
-  );
-  assert.throws(
-    () =>
-      compile(document().diagram(chart({ ...grouped, relations: [{ ...relation, to: "zone" }] }))),
+    () => compile(chart({ ...grouped, relations: [{ ...relation, to: "zone" }] })),
     hasCode("UNKNOWN_ENDPOINT"),
   );
   assert.throws(
@@ -496,10 +443,8 @@ test("partition membership is validated while dependency cycles remain valid", (
     hasCode("UNKNOWN_FIELD"),
   );
   const scene = compile(
-    document().diagram(
-      chart({ ...grouped, relations: [relation, { id: "back", from: b, to: a, label: "反馈" }] }),
-    ),
-  ).scenes[0];
+    chart({ ...grouped, relations: [relation, { id: "back", from: b, to: a, label: "反馈" }] }),
+  ).scene;
   assert.equal(scene.edges.length, 2);
   assert.notEqual(scene.edges[0].path, scene.edges[1].path);
 });
@@ -514,13 +459,11 @@ test("partitions cannot overlap each other or ungrouped nodes", () => {
   assert.throws(
     () =>
       compile(
-        document().diagram(
-          chart({
-            partitions: [zone],
-            nodes: [appearance(a, 0, 0, "zone"), appearance(b, 300)],
-            relations: [],
-          }),
-        ),
+        chart({
+          partitions: [zone],
+          nodes: [appearance(a, 0, 0, "zone"), appearance(b, 300)],
+          relations: [],
+        }),
       ),
     hasCode("REGION_OVERLAP"),
   );
@@ -528,35 +471,26 @@ test("partitions cannot overlap each other or ungrouped nodes", () => {
   assert.throws(
     () =>
       compile(
-        document().diagram(
-          chart({
-            partitions: [zone, second],
-            nodes: [appearance(a, 0, 0, "zone"), appearance(b, 0, 0, "second")],
-            relations: [],
-          }),
-        ),
+        chart({
+          partitions: [zone, second],
+          nodes: [appearance(a, 0, 0, "zone"), appearance(b, 0, 0, "second")],
+          relations: [],
+        }),
       ),
     hasCode("REGION_OVERLAP"),
   );
 });
 
-test("duplicate diagrams, nodes and relations are rejected", () => {
+test("duplicate nodes and relations are rejected", () => {
+  assert.throws(() => compile(chart({ nodes: [...nodes, nodes[0]] })), hasCode("DUPLICATE_NODE"));
   assert.throws(
-    () => compile(document().diagram(chart()).diagram(chart())),
-    hasCode("DUPLICATE_DIAGRAM"),
-  );
-  assert.throws(
-    () => compile(document().diagram(chart({ nodes: [...nodes, nodes[0]] }))),
-    hasCode("DUPLICATE_NODE"),
-  );
-  assert.throws(
-    () => compile(document().diagram(chart({ relations: [relation, relation] }))),
+    () => compile(chart({ relations: [relation, relation] })),
     hasCode("DUPLICATE_RELATION"),
   );
 });
 
 test("architecture uses orthogonal connections with labels directly beside their segments", () => {
-  const scene = compile(document().diagram(overview)).scenes[0];
+  const scene = compile(overview).scene;
   for (const edge of scene.edges) {
     assert.ok(!("number" in edge));
     for (let i = 1; i < edge.points.length; i++) {
@@ -582,7 +516,7 @@ test("architecture uses orthogonal connections with labels directly beside their
 });
 
 test("an execution bar begins on call arrival and ends on its return", () => {
-  const scene = compile(document().diagram(timeline([relation, returned]))).scenes[0];
+  const scene = compile(timeline([relation, returned])).scene;
   assert.ok(scene.kind === "sequence");
   const [call, response] = scene.edges;
   const [bar] = scene.activations;
@@ -601,7 +535,7 @@ test("nested synchronous calls have lifetimes contained by the outer execution",
     { id: "inner-result", from: c, to: b, label: "返回 C", replyTo: "inner" },
     returned,
   ];
-  const scene = compile(document().diagram(timeline(steps))).scenes[0];
+  const scene = compile(timeline(steps)).scene;
   assert.ok(scene.kind === "sequence");
   const [outer, inner] = scene.activations;
   assert.ok(outer.y < inner.y);
@@ -615,50 +549,34 @@ test("self calls create a separately offset execution bar", () => {
     { id: "self-result", from: b, to: b, label: "内部返回", replyTo: "self" },
     returned,
   ];
-  const scene = compile(document().diagram(timeline(steps))).scenes[0];
+  const scene = compile(timeline(steps)).scene;
   assert.ok(scene.kind === "sequence");
   assert.equal(scene.activations[1].x, scene.activations[0].x + 7);
   assert.equal(scene.activations[1].y, scene.edges[1].arrivalY);
 });
 
 test("missing returns, blocked callers and incorrect return ordering are rejected", () => {
+  assert.throws(() => compile(timeline([relation])), hasCode("UNFINISHED_CALL"));
   assert.throws(
-    () => compile(document().diagram(timeline([relation]))),
-    hasCode("UNFINISHED_CALL"),
-  );
-  assert.throws(
-    () =>
-      compile(
-        document().diagram(
-          timeline([relation, { id: "blocked", from: a, to: c, label: "提前调用" }]),
-        ),
-      ),
+    () => compile(timeline([relation, { id: "blocked", from: a, to: c, label: "提前调用" }])),
     hasCode("CALL_WHILE_BLOCKED"),
   );
   assert.throws(
-    () =>
-      compile(
-        document().diagram(
-          timeline([relation, { id: "inner", from: b, to: c, label: "内层" }, returned]),
-        ),
-      ),
+    () => compile(timeline([relation, { id: "inner", from: b, to: c, label: "内层" }, returned])),
     hasCode("RETURN_ORDER"),
   );
   assert.throws(
-    () => compile(document().diagram(timeline([{ ...relation, replyTo: "future" }]))),
+    () => compile(timeline([{ ...relation, replyTo: "future" }])),
     hasCode("UNKNOWN_REPLY"),
   );
   assert.throws(
-    () =>
-      compile(
-        document().diagram(timeline([relation, { ...relation, id: "wrong", replyTo: "request" }])),
-      ),
+    () => compile(timeline([relation, { ...relation, id: "wrong", replyTo: "request" }])),
     hasCode("REPLY_DIRECTION"),
   );
 });
 
 test("mutually exclusive returns close branch-specific execution segments", () => {
-  const scene = compile(document().diagram(generation)).scenes[0];
+  const scene = compile(generation).scene;
   assert.ok(scene.kind === "sequence");
   const calls = scene.activations.filter((bar) => bar.callId === "submit");
   assert.equal(calls.length, 3);
@@ -679,7 +597,7 @@ test("branches must converge on the same call state and cannot use sibling calls
     ],
   };
   assert.throws(
-    () => compile(document().diagram(timeline([relation, mismatch]))),
+    () => compile(timeline([relation, mismatch])),
     hasCode("BRANCH_EXECUTION_MISMATCH"),
   );
   const sibling: StepInput = {
@@ -690,7 +608,7 @@ test("branches must converge on the same call state and cannot use sibling calls
       { label: "另一分支", steps: [{ ...returned, id: "sibling-return" }] },
     ],
   };
-  assert.throws(() => compile(document().diagram(timeline([sibling]))), hasCode("UNKNOWN_REPLY"));
+  assert.throws(() => compile(timeline([sibling])), hasCode("UNKNOWN_REPLY"));
 });
 
 test("nested alternatives preserve the active outer call until a shared return", () => {
@@ -714,7 +632,7 @@ test("nested alternatives preserve the active outer call until a shared return",
       { label: "拒绝", steps: pair("reject") },
     ],
   };
-  const scene = compile(document().diagram(timeline([relation, outer, returned]))).scenes[0];
+  const scene = compile(timeline([relation, outer, returned])).scene;
   assert.ok(scene.kind === "sequence");
   assert.equal(scene.fragments.length, 2);
   assert.ok(scene.activations.every((bar) => bar.height > 0 && bar.y + bar.height <= scene.height));
@@ -729,99 +647,17 @@ test("capacity diagnostics preserve content instead of shrinking or truncating i
   const many = Array.from({ length: 13 }, (_, i) =>
     appearance(entity({ id: `object-${i}`, label: `对象 ${i}` }), i * 340),
   );
-  assert.throws(
-    () => compile(document().diagram(chart({ nodes: many, relations: [] }))),
-    hasCode("NODE_CAPACITY"),
-  );
+  assert.throws(() => compile(chart({ nodes: many, relations: [] })), hasCode("NODE_CAPACITY"));
   const long = entity({ id: "long", label: "过长的名称".repeat(100) });
   assert.throws(
-    () => compile(document().diagram(chart({ nodes: [appearance(long)], relations: [] }))),
+    () => compile(chart({ nodes: [appearance(long)], relations: [] })),
     hasCode("LABEL_CAPACITY"),
-  );
-  assert.throws(() => compile(document()), hasCode("EMPTY_DOCUMENT"));
-});
-
-test("Markdown supports structured text and escapes code", () => {
-  const doc = document().markdown(
-    "# 标题\n\n一个 **重点**，一个 *强调* 与 `x < y`。\n\n3. 第三项\n4. 第四项\n\n```html\n<script>alert(1)</script>\n```",
-  );
-  const html = render(doc);
-  assert.match(html, /<strong>重点<\/strong>/);
-  assert.match(html, /<em>强调<\/em>/);
-  assert.match(html, /<ol start="3">/);
-  assert.match(html, /&lt;script&gt;alert\(1\)&lt;\/script&gt;/);
-  assert.doesNotMatch(html, /<script>/);
-});
-
-test("Markdown rejects unsafe links and raw HTML with source locations", () => {
-  assert.throws(() => document().markdown("<div>内容</div>"), hasCode("MARKDOWN_HTML"));
-  assert.throws(() => document().markdown("[点这里](javascript:alert)"), hasCode("MARKDOWN_LINK"));
-  assert.throws(
-    () => document().markdown("![图片](https://example.com/a.png)"),
-    hasCode("MARKDOWN_IMAGE"),
-  );
-  assert.throws(
-    () => document().markdown("[点这里](jav&#x61;script:alert)"),
-    hasCode("MARKDOWN_LINK"),
-  );
-  assert.throws(
-    () => document().markdown("[点这里][unsafe]\n\n[unsafe]: javascript:alert"),
-    hasCode("MARKDOWN_LINK"),
-  );
-  assert.throws(
-    () => document().markdown("第一行\n\n> <script>坏内容</script>"),
-    (error) =>
-      error instanceof DiagnosticError &&
-      error.diagnostics[0].path === "blocks[0].markdown.line[3]",
-  );
-  assert.throws(
-    () => render(document().markdown("[未知](entity:missing)")),
-    hasCode("UNKNOWN_REFERENCE"),
-  );
-  assert.throws(() => document().markdown("[错误](entity:a:extra)"), hasCode("MARKDOWN_LINK"));
-  assert.throws(() => document().markdown("[错误](ENTITY:a)"), hasCode("MARKDOWN_LINK"));
-  assert.throws(
-    () => document().markdown("第一块").markdown("<div>第二块</div>"),
-    (error) =>
-      error instanceof DiagnosticError &&
-      error.diagnostics[0].path === "blocks[1].markdown.line[1]",
-  );
-});
-
-test("Markdown parses nested formatting, references and escaped entities", () => {
-  const html = render(
-    document().markdown(
-      '标题\n====\n\n**加粗里的 _强调_**，``a ` b``，&lt;b&gt; 与 &amp;。\n\n[**引用**][page]\n\n[page]: https://example.com/a_(b) "说明"',
-    ),
-  );
-  assert.match(html, /<h1[^>]*>标题<\/h1>/);
-  assert.match(html, /<strong>加粗里的 <em>强调<\/em><\/strong>/);
-  assert.match(html, /<code>a ` b<\/code>/);
-  assert.match(html, /&lt;b&gt; 与 &amp;/);
-  assert.doesNotMatch(html, /&amp;lt;/);
-  assert.match(html, /href="https:\/\/example.com\/a_\(b\)" title="说明"><strong>引用<\/strong>/);
-});
-
-test("Markdown lists, quotes and code blocks preserve nested structure", () => {
-  const html = render(
-    document().markdown(
-      "- 一级\n  - 二级\n\n> 引用\n>\n> 第二段\n\n---\n\n~~~js\nconst x = 1;\n~~~\n\n```txt\n到文件末尾",
-    ),
-  );
-  assert.match(html, /<ul><li>一级\n<ul><li>二级<\/li><\/ul><\/li><\/ul>/);
-  assert.match(html, /<blockquote><p>引用<\/p>\n<p>第二段<\/p><\/blockquote>/);
-  assert.match(html, /<hr>/);
-  assert.match(html, /data-language="js">const x = 1;/);
-  assert.match(html, /data-language="txt">到文件末尾/);
-  assert.throws(
-    () => render(document().markdown("> - [未知对象](entity:missing)")),
-    hasCode("UNKNOWN_REFERENCE"),
   );
 });
 
 test("untrusted node labels remain text and cannot introduce scripts", () => {
   const literal = entity({ id: "literal", label: "<script>alert(1)</script>" });
-  const html = render(document().diagram(chart({ nodes: [appearance(literal)], relations: [] })));
+  const html = render(chart({ nodes: [appearance(literal)], relations: [] }));
   assert.equal((html.match(/<script\b/g) ?? []).length, 1);
   assert.match(html, /&lt;script&gt;/);
   assert.throws(() => entity({ id: "bad", label: "不可\u0000显示" }), hasCode("INVALID_TEXT"));
@@ -833,4 +669,11 @@ test("fixed text advances retain complete Unicode graphemes", () => {
   assert.equal(result.lines.join(""), text);
   assert.ok(result.lines.every((line) => measure(line) <= 28));
   assert.ok(result.lines.some((line) => line.includes("👩‍💻")));
+});
+
+test("compilation rejects prose, collections and unbranded serialized data", () => {
+  for (const value of [null, "正文", [overview], { ...overview }, compile(overview).semantic]) {
+    // @ts-expect-error Exercise JavaScript callers that bypass the declaration contract.
+    assert.throws(() => compile(value), hasCode("INVALID_DIAGRAM"));
+  }
 });

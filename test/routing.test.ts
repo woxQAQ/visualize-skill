@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { architecture, compile, document, entity, role, swimlane } from "../src/index.ts";
+import { architecture, compile, entity, role, swimlane } from "../src/index.ts";
 import type { EdgeLayout, NodeLayout, Point, Relation, Scene } from "../src/model.ts";
 import { agentFlow, agentOverview } from "./fixtures/agent-routing.ts";
 import { overview as harnessOverview } from "./fixtures/harness-routing.ts";
@@ -34,7 +34,7 @@ function sceneFor(kind: "architecture" | "swimlane", relations: Relation[]) {
           lanes: [{ id: "work", label: "处理", height: 800 }],
           nodes: nodes.map((node) => ({ ...node, lane: "work" })),
         });
-  return compile(document().diagram(chart)).scenes[0];
+  return compile(chart).scene;
 }
 
 function assertPort(node: NodeLayout, point: Point, neighbor: Point) {
@@ -170,7 +170,7 @@ function assertNoLongSharedSegments(edges: EdgeLayout[], allowance = 18) {
 }
 
 test("package overview separates shared corridors and keeps the local Lane to Drive connection short", () => {
-  const scene = compile(document().diagram(agentOverview)).scenes[0];
+  const scene = compile(agentOverview).scene;
   assertRoutes(scene);
   assertNoLongSharedSegments(scene.edges);
   const local = scene.edges.find((edge) => edge.id === "lane-drive")!;
@@ -190,8 +190,8 @@ test("package overview separates shared corridors and keeps the local Lane to Dr
   );
 });
 
-test("harness report separates incoming arrows from outgoing leads without moving nodes", () => {
-  const scene = compile(document().diagram(harnessOverview)).scenes[0];
+test("harness diagram separates incoming arrows from outgoing leads without moving nodes", () => {
+  const scene = compile(harnessOverview).scene;
   assertRoutes(scene);
   assertNoLongSharedSegments(scene.edges);
   const focus = new Set(["harness-execution", "compaction", "harness-session"]);
@@ -208,13 +208,11 @@ test("harness report separates incoming arrows from outgoing leads without movin
   }
   const { kind: _kind, ...options } = harnessOverview;
   const reversed = compile(
-    document().diagram(
-      architecture({
-        ...options,
-        relations: [...harnessOverview.relations].reverse(),
-      }),
-    ),
-  ).scenes[0];
+    architecture({
+      ...options,
+      relations: [...harnessOverview.relations].reverse(),
+    }),
+  ).scene;
   assert.deepEqual(reversed.nodes, scene.nodes);
   for (const edge of scene.edges) {
     assert.deepEqual(
@@ -225,7 +223,7 @@ test("harness report separates incoming arrows from outgoing leads without movin
 });
 
 test("durable flow separates requests from their return paths within the declared lanes", () => {
-  const scene = compile(document().diagram(agentFlow)).scenes[0];
+  const scene = compile(agentFlow).scene;
   assert.equal(scene.kind, "swimlane");
   if (scene.kind !== "swimlane") return;
   assertRoutes(scene);
@@ -243,7 +241,7 @@ test("durable flow separates requests from their return paths within the declare
 });
 
 test("cross-lane labels keep their backgrounds clear of swimlane separators", () => {
-  const scene = compile(document().diagram(expense)).scenes[0];
+  const scene = compile(expense).scene;
   assertRoutes(scene);
   assert.equal(scene.edges.length, expense.relations.length);
 });
@@ -319,7 +317,7 @@ function partitionConnections(sessionTitle = "session/ 会话与存储") {
 }
 
 test("aligned cross-partition connections use border-side label space without moving nodes", () => {
-  const scene = compile(document().diagram(partitionConnections())).scenes[0];
+  const scene = compile(partitionConnections()).scene;
   assertRoutes(scene);
   assertNoLongSharedSegments(scene.edges);
   for (const [id, points] of [
@@ -368,8 +366,7 @@ test("aligned cross-partition connections use border-side label space without mo
 });
 
 test("connections still detour when the painted partition title blocks the straight path", () => {
-  const scene = compile(document().diagram(partitionConnections("session/ 会话与存储层")))
-    .scenes[0];
+  const scene = compile(partitionConnections("session/ 会话与存储层")).scene;
   assertRoutes(scene);
   const edge = scene.edges.find((edge) => edge.id === "drive-session")!;
   assert.ok(edge.points.length > 2);
@@ -391,15 +388,13 @@ test("connections still detour when the painted partition title blocks the strai
 test("narrow border-side space does not force English words into character columns", () => {
   const { kind: _kind, ...chart } = partitionConnections();
   const scene = compile(
-    document().diagram(
-      architecture({
-        ...chart,
-        relations: chart.relations.map((relation) =>
-          relation.id === "drive-exec" ? { ...relation, label: "execute tool" } : relation,
-        ),
-      }),
-    ),
-  ).scenes[0];
+    architecture({
+      ...chart,
+      relations: chart.relations.map((relation) =>
+        relation.id === "drive-exec" ? { ...relation, label: "execute tool" } : relation,
+      ),
+    }),
+  ).scene;
   assertRoutes(scene);
   const edge = scene.edges.find((edge) => edge.id === "drive-exec")!;
   assert.ok(edge.points.length > 2);
@@ -408,10 +403,10 @@ test("narrow border-side space does not force English words into character colum
 });
 
 test("relation declaration order does not change allocated routes or labels", () => {
-  const forward = compile(document().diagram(agentOverview)).scenes[0];
+  const forward = compile(agentOverview).scene;
   const { kind: _kind, ...options } = agentOverview;
   const reversed = architecture({ ...options, relations: [...options.relations].reverse() });
-  const backward = compile(document().diagram(reversed)).scenes[0];
+  const backward = compile(reversed).scene;
   for (const edge of forward.edges)
     assert.deepEqual(
       backward.edges.find((other) => other.id === edge.id),

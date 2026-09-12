@@ -2,7 +2,7 @@
   "name": "visualize-skills",
   "version": "0.1.0",
   "private": true,
-  "description": "Declare relationships and Markdown; generate consistent standalone HTML.",
+  "description": "Draw interactive architecture, sequence and swimlane diagrams in Codex.",
   "type": "module",
   "scripts": {
     "lint": "oxlint",
@@ -11,9 +11,9 @@
     "fmt:check": "oxfmt --check",
     "typecheck": "tsc --noEmit",
     "test": "pnpm typecheck && node --test test/*.test.ts",
-    "example": "node src/cli.ts examples/self-explanation.ts -o output/self-explanation.html",
-    "example:single": "node src/cli.ts examples/single.ts -o output/architecture.html",
-    "example:swimlane": "node src/cli.ts examples/swimlane.ts -o output/swimlane.html"
+    "example": "node src/cli.ts examples/architecture.ts -o output/architecture.html",
+    "example:swimlane": "node src/cli.ts examples/swimlane.ts -o output/swimlane.html",
+    "example:sequence": "node src/cli.ts examples/sequence.ts -o output/sequence.html"
   },
   "devDependencies": {
     "@types/node": "^22.20.1",

@@ -14,15 +14,64 @@ interface Execution {
   call: Call;
   activation: Activation;
 }
-import { wrap } from "../design.ts";
+import { measure, wrap } from "../design.ts";
 import { nodeBox, finish, path } from "./common.ts";
 import { fail } from "../diagnostics.ts";
 
-export function layoutSequence(chart: SequenceChart, ctx: LayoutContext): SequenceScene {
+export function layoutSequence(
+  chart: SequenceChart,
+  ctx: LayoutContext,
+  availableWidth?: number,
+): SequenceScene {
+  const gap = availableWidth === undefined ? 40 : 16;
+  const widths = chart.participants.map((node) => node.size.width);
+  if (availableWidth !== undefined) {
+    const budget = availableWidth - 84 - gap * (widths.length - 1);
+    const minimums = chart.participants.map((node) =>
+      Math.min(
+        node.size.width,
+        Math.max(
+          60,
+          ...[...ctx.entities.get(node.entity)!.label.matchAll(/[A-Za-z0-9_-]+/g)].map(
+            ([word]) => measure(word) + 32,
+          ),
+        ),
+      ),
+    );
+    const minimum = minimums.reduce((sum, width) => sum + width, 0);
+    if (budget < minimum)
+      fail(
+        "SEQUENCE_LABEL_SPACE",
+        `diagram.${chart.id}`,
+        "容器不足以保留参与者名称的可读宽度。",
+        "使用逐条调用视图。",
+      );
+    const flexible = widths.reduce((sum, width, index) => sum + width - minimums[index], 0);
+    for (let index = 0; index < widths.length; index++)
+      widths[index] =
+        minimums[index] +
+        (flexible
+          ? (widths[index] - minimums[index]) * Math.min(1, (budget - minimum) / flexible)
+          : 0);
+  }
   let nextX = 32;
-  const nodes = chart.participants.map((node) => {
-    const box = nodeBox(node, ctx, nextX, 24, { description: false });
-    nextX += box.width + 40;
+  const nodes = chart.participants.map((node, index) => {
+    const width = widths[index];
+    const title =
+      availableWidth === undefined
+        ? null
+        : wrap(
+            ctx.entities.get(node.entity)!.label,
+            Math.max(1, width - 32),
+            `entity.${node.entity}.label`,
+            3,
+          );
+    const fitted =
+      availableWidth === undefined
+        ? node
+        : { ...node, size: { width, height: Math.max(node.size.height, 28 + title!.height) } };
+    const box = nodeBox(fitted, ctx, nextX, 24, { description: false });
+    nextX += box.width + gap;
     return box;
   });
   const headerHeight = Math.max(...nodes.map((node) => node.height));

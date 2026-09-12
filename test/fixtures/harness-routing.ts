@@ -1,4 +1,4 @@
-// Original package report reproduces incoming arrows sharing outgoing port leads.
+// Original package diagram reproduces incoming arrows sharing outgoing port leads.
 import { entity, role, architecture } from "../../src/index.ts";
 
 const facade = role({ id: "facade", label: "有状态封装" });
