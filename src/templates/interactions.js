@@ -90,11 +90,7 @@
       focus(panel.querySelector("[data-close-details]"));
     } else if (locationId) {
       event.preventDefault();
-      const original = root.querySelector(`#${locationId}`);
-      const entityId = original?.getAttribute("data-entity");
-      const node = [...root.querySelectorAll(`[data-entity="${entityId}"]`)].find(
-        (node) => node.getClientRects().length > 0,
-      );
+      const node = root.querySelector(`#${locationId}`);
       if (!(node instanceof SVGElement) && !(node instanceof HTMLElement)) return;
       panel.hidePopover();
       clearLocation();

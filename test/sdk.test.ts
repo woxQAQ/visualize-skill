@@ -84,8 +84,7 @@ test("render produces a deterministic self-contained fragment with host theme to
   assert.equal(html, render(overview));
   assert.doesNotMatch(html, /<!doctype|<html|<head[ >]|<body|<main|<link|<iframe|<img|\bsrc=/i);
   assert.equal((html.match(/<script\b/g) ?? []).length, 1);
-  assert.ok((html.match(/<svg /g) ?? []).length > 1);
-  assert.match(html, /data-responsive-layout/);
+  assert.equal((html.match(/<svg /g) ?? []).length, 1);
   assert.match(html, /id="visualize-system-architecture" class="diagram-widget"/);
   assert.match(html, /<div class="node-details" data-details popover="auto" role="dialog"/);
   assert.doesNotMatch(html, /<dialog|showModal|::backdrop/);

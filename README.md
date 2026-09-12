@@ -1,6 +1,6 @@
 # visualize-skills
 
-在 Codex 对话中绘制交互式架构图、时序图和泳道图。声明节点与关系，由 Skill 检查布局并生成可直接嵌入的 HTML 片段，继承 Codex 的配色和明暗主题，根据容器宽度重排，支持关联强调；节点详情暂时停用，保留实现。
+在 Codex 对话中绘制交互式架构图、时序图和泳道图。声明节点与关系，由 Skill 检查布局并生成可直接嵌入的 HTML 片段，继承 Codex 的配色和明暗主题，根据容器宽度等比例缩放，支持关联强调；节点详情暂时停用，保留实现。
 
 使用入口见 [SKILL.md](SKILL.md)，接口见 [references/api.md](references/api.md)。不提供报告编排或 Markdown 正文处理。
 

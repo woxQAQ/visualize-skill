@@ -6,7 +6,7 @@ import { layoutSwimlane } from "./layout/swimlane.ts";
 import { validate } from "./validate.ts";
 import { semanticDiagram } from "./sdk.ts";
 import { escape } from "./markup.ts";
-import { renderResponsive } from "./render-responsive.ts";
+import { renderSvg } from "./render-svg.ts";
 import { interactionScript, renderTemplate, stylesheet } from "./templates.ts";
 
 function entityDetails(semantic: SemanticDiagram) {
@@ -106,7 +106,7 @@ export function render(diagram: Diagram) {
       id: chart.id,
       title: chart.title,
       legend,
-      svg: renderResponsive(chart, ctx, scene),
+      svg: renderSvg(scene, chart, ctx),
     }),
     details: entityDetails(semantic),
     script: interactionScript.replace("__ROOT_ID__", rootId),

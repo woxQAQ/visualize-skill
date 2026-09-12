@@ -27,7 +27,7 @@ There is no build step. Node runs TypeScript source directly; diagram generation
 
 Follow existing two-space indentation, single quotes, and semicolons. Use explicit `.ts` extensions for local imports and `import type` for type-only imports. Keep TypeScript compatible with type stripping. Browser JavaScript uses JSDoc and participates in strict checking.
 
-Use lowercase hyphenated declaration identifiers, such as `order-api`. Preserve immutable declarations and explicit geometry in `compile()`. Rendering prepares separate compact layouts for container widths without shrinking text. `ArchitecturePartition` belongs only to architecture diagrams and groups components by shared responsibility or membership; it is not an entity or relation endpoint. Each diagram type owns its organization model. Avoid speculative abstractions and dependencies. Use `pnpm lint` and `pnpm fmt:check` for the configured lint and format checks.
+Use lowercase hyphenated declaration identifiers, such as `order-api`. Preserve immutable declarations and explicit geometry in `compile()`. Rendering uses one SVG with the compiled geometry and scales it proportionally down to the container width, including text. `ArchitecturePartition` belongs only to architecture diagrams and groups components by shared responsibility or membership; it is not an entity or relation endpoint. Each diagram type owns its organization model. Avoid speculative abstractions and dependencies. Use `pnpm lint` and `pnpm fmt:check` for the configured lint and format checks.
 
 ## Testing Guidelines
 

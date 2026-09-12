@@ -5,12 +5,7 @@ import { overview } from "../examples/architecture.ts";
 import { generation } from "../examples/sequence.ts";
 import { expense } from "../examples/swimlane.ts";
 
-function wideSvg(html: string) {
-  return html.match(/<svg\b[^]*?<\/svg>/)![0];
-}
-
 function highlights(html: string) {
-  html = wideSvg(html);
   return [...html.matchAll(/([^\n]+) \[data-relation="([^"]+)"\] \{([^}]+)\}/g)].map(
     ([, selector, id, declarations]) => ({
       selector: selector.trim(),
@@ -22,7 +17,6 @@ function highlights(html: string) {
 }
 
 function nodeHighlights(html: string) {
-  html = wideSvg(html);
   return [...html.matchAll(/([^\n]+) \[data-entity="([^"]+)"\] \{([^}]+)\}/g)].map(
     ([, selector, id, declarations]) => ({
       selector: selector.trim(),
@@ -115,9 +109,7 @@ test("every diagram highlights direct incoming and outgoing relations from eithe
   for (const { chart, relations } of cases) {
     const html = render(chart);
     const rules = highlights(html);
-    const paths = [...wideSvg(html).matchAll(/<path data-relation="([^"]+)"/g)].map(
-      (match) => match[1],
-    );
+    const paths = [...html.matchAll(/<path data-relation="([^"]+)"/g)].map((match) => match[1]);
     assert.deepEqual(
       rules.map((rule) => rule.id),
       paths,

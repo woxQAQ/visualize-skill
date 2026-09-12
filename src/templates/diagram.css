@@ -7,7 +7,6 @@
   padding: 16px;
   width: 100%;
   min-width: 0;
-  container-type: inline-size;
   box-sizing: border-box;
 }
 .diagram-widget *,
@@ -52,9 +51,6 @@
 }
 .diagram-widget .diagram-viewport {
   padding-bottom: 8px;
-}
-.diagram-widget .diagram-layout {
-  display: none;
 }
 .diagram-widget svg {
   display: block;
@@ -184,86 +180,4 @@
   .diagram-widget svg :is([data-entity], [data-relation], [data-relation-label]) {
     transition: none;
   }
-}
-
-.diagram-widget .trace-steps {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-}
-.diagram-widget .trace-step {
-  margin: 0 0 24px;
-}
-.diagram-widget .trace-label {
-  margin-bottom: 8px;
-  overflow-wrap: anywhere;
-}
-.diagram-widget .trace-kind {
-  display: block;
-  color: var(--muted-foreground);
-  font-size: 12px;
-}
-.diagram-widget .trace-endpoints {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 24px minmax(0, 1fr);
-  gap: 8px;
-  align-items: center;
-}
-.diagram-widget .trace-endpoints .node-link {
-  display: block;
-  padding: 8px;
-  color: var(--foreground);
-  background: var(--node-fill);
-  border: 2px solid var(--node-color);
-  border-radius: 4px;
-  text-align: center;
-  overflow-wrap: anywhere;
-}
-.diagram-widget .trace-arrow {
-  position: relative;
-  border-top: 1.5px solid var(--muted-foreground);
-}
-.diagram-widget .trace-arrow::after {
-  content: "";
-  position: absolute;
-  right: 0;
-  top: -4px;
-  width: 6px;
-  height: 6px;
-  border-top: 1.5px solid var(--muted-foreground);
-  border-right: 1.5px solid var(--muted-foreground);
-  transform: rotate(45deg);
-}
-.diagram-widget .trace-return .trace-arrow {
-  border-top-style: dashed;
-}
-.diagram-widget .trace-branch {
-  border: 1px dashed var(--muted-foreground);
-  padding: 12px;
-  margin-top: 16px;
-}
-.diagram-widget .trace-branch h3 {
-  margin: 0 0 16px;
-  color: var(--muted-foreground);
-}
-.diagram-widget .trace-branch .trace-step:last-child {
-  margin-bottom: 0;
-}
-.diagram-widget .trace-alternative-label {
-  color: var(--muted-foreground);
-  margin-top: 16px;
-}
-.diagram-widget .relation-key ol {
-  margin: 8px 0;
-  padding-left: 28px;
-}
-.diagram-widget .relation-key li {
-  padding-left: 4px;
-  margin-bottom: 10px;
-  overflow-wrap: anywhere;
-}
-.diagram-widget .relation-key li span {
-  display: block;
-  color: var(--muted-foreground);
-  font-size: 12px;
 }

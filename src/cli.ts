@@ -4,7 +4,7 @@ import { dirname, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { parseArgs } from "node:util";
 import { randomUUID } from "node:crypto";
-import { render, DiagnosticError } from "./index.ts";
+import { compile, render, DiagnosticError } from "./index.ts";
 import { isDiagram } from "./sdk.ts";
 import { fail } from "./diagnostics.ts";
 
@@ -39,7 +39,7 @@ try {
         "直接导出 architecture(...)、sequence(...) 或 swimlane(...)。",
       );
     if (values.check) {
-      render(module.default);
+      compile(module.default);
       process.stdout.write(`${JSON.stringify({ ok: true, diagram: module.default.id })}\n`);
     } else {
       if (!output) throw new Error("缺少输出路径。");

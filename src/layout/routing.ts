@@ -125,9 +125,8 @@ function labelPositions(
   obstacles: Rect[],
   labelObstacles: Rect[],
   bounds?: Rect,
-  labelsOnPath = false,
 ): Position[] {
-  const candidates: (Position & { segment?: number })[] = [];
+  const candidates: Position[] = [];
   for (let i = 1; i < points.length; i++) {
     const a = points[i - 1],
       b = points[i];
@@ -146,9 +145,6 @@ function labelPositions(
         Math.max(a[1], b[1]) - label.height - 8,
       ])) {
         candidates.push({ x: a[0] + 10, y }, { x: a[0] - label.width - 10, y });
-        // Compact views may cover this segment with the label's background;
-        // every other segment remains an obstacle to that label.
-        if (labelsOnPath) candidates.push({ x: a[0] - label.width / 2, y, segment: i - 1 });
       }
     }
   }
@@ -166,9 +162,7 @@ function labelPositions(
       (!bounds || contains(bounds, background)) &&
       !obstacles.some((obstacle) => overlaps(box, obstacle, 6)) &&
       !labelObstacles.some((obstacle) => overlaps(background, obstacle, 2)) &&
-      !points
-        .slice(1)
-        .some((point, i) => i !== position.segment && crosses(points[i], point, box, 4))
+      !points.slice(1).some((point, i) => crosses(points[i], point, box, 4))
     );
   });
 }
@@ -320,7 +314,6 @@ export function routeRelations(
     obstacles: Rect[];
     labelObstacles: Rect[];
     bounds?: Rect;
-    labelsOnPath?: boolean;
   },
 ): EdgeLayout[] {
   const { bounds } = space;
@@ -417,17 +410,12 @@ export function routeRelations(
           if (seen.has(key)) continue;
           seen.add(key);
           const labels = variants.flatMap((label) =>
-            labelPositions(
-              points,
-              label,
-              obstacles,
-              space.labelObstacles,
-              bounds,
-              space.labelsOnPath,
-            ).map((position) => ({
-              label,
-              position,
-            })),
+            labelPositions(points, label, obstacles, space.labelObstacles, bounds).map(
+              (position) => ({
+                label,
+                position,
+              }),
+            ),
           );
           if (labels.length) choices.push({ points, labels, cost: routeCost(points) });
         }
