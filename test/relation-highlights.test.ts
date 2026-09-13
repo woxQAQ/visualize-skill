@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { architecture, entity, render, role, swimlane } from "../src/index.ts";
+import { architecture, compile, entity, render, role, swimlane } from "../src/index.ts";
 import { overview } from "../examples/architecture.ts";
 import { generation } from "../examples/sequence.ts";
 import { expense } from "../examples/swimlane.ts";
@@ -45,18 +45,16 @@ test("node emphasis includes direct neighbors without propagating through the gr
       assert.ok(rule.triggers.includes(rule.id));
       assert.ok(rule.selector.startsWith(`#diagram-${chart.id} svg:has(`));
       assert.match(rule.declarations, /opacity:1/);
-      assert.match(rule.declarations, /--node-elevation:drop-shadow/);
+      assert.match(
+        rule.declarations,
+        /--node-elevation:drop-shadow\(0 3px 4px var\(--node-shadow-color\)\)/,
+      );
     }
     assert.ok(
       html.includes(
-        `#diagram-${chart.id} svg:has(.node-link:is(:hover,:focus-visible)) :is([data-entity],[data-relation],[data-relation-label]) { opacity:0.45; }`,
+        `#diagram-${chart.id} svg:has(.node-link:is(:hover,:focus-visible),[data-relation-hit]:hover,[data-relation-label]:hover) :is([data-entity],[data-relation],[data-relation-label]) { opacity:0.45; }`,
       ),
     );
-    for (const [, color, surface] of html.matchAll(
-      /style="--node-color:([^"]+)"[^]*?<rect class="node-surface"([^>]+)>/g,
-    )) {
-      assert.ok(surface.includes(`stroke="${color}"`));
-    }
   }
 });
 
@@ -83,7 +81,36 @@ test("isolated nodes still emphasize themselves and dim other nodes without any 
   assert.equal(highlights(html).length, 0);
 });
 
-test("every diagram highlights direct incoming and outgoing relations from either endpoint", () => {
+test("hovering a relation or its label emphasizes only that relation and its endpoints", () => {
+  for (const chart of [overview, generation, expense]) {
+    const html = render(chart);
+    const nodes = nodeHighlights(html);
+    const relations = highlights(html);
+    for (const edge of compile(chart).scene.edges) {
+      for (const attribute of ["data-relation-hit", "data-relation-label"]) {
+        const trigger = `[${attribute}="${edge.id}"]`;
+        assert.deepEqual(
+          nodes
+            .filter((rule) => rule.selector.includes(trigger))
+            .map((rule) => rule.id)
+            .sort(),
+          [...new Set([edge.from, edge.to])].sort(),
+        );
+        assert.deepEqual(
+          relations.filter((rule) => rule.selector.includes(trigger)).map((rule) => rule.id),
+          [edge.id],
+        );
+      }
+      const hit = html.match(new RegExp(`<path data-relation-hit="${edge.id}"[^>]+>`))![0];
+      assert.ok(hit.includes(`d="${edge.path}"`));
+      assert.match(hit, /stroke="transparent" stroke-width="12"/);
+      assert.match(hit, /vector-effect="non-scaling-stroke" pointer-events="stroke"/);
+      assert.ok(html.indexOf(hit) < html.indexOf('<g id="entity-'));
+    }
+  }
+});
+
+test("every diagram colors relations by their source and highlights them from either endpoint", () => {
   const cases = [
     {
       chart: overview,
@@ -123,15 +150,29 @@ test("every diagram highlights direct incoming and outgoing relations from eithe
         (rule.selector.match(/:is\(:hover,:focus-visible\)/g) ?? []).length,
         endpoints.length,
       );
-      assert.match(rule.declarations, /stroke:var\(--viz-series-1\);stroke-width:2.5/);
+      assert.match(rule.declarations, /stroke-width:2.5/);
+      assert.doesNotMatch(rule.declarations, /\bstroke:/);
       assert.match(rule.declarations, /opacity:1/);
       assert.ok(html.includes(`${rule.selector} [data-relation-label="${id}"] { opacity:1; }`));
       assert.ok(
-        html.includes(
-          `${rule.selector} [data-relation-label="${id}"] text { fill:var(--viz-series-1);font-weight:600; }`,
-        ),
+        html.includes(`${rule.selector} [data-relation-label="${id}"] text { font-weight:600; }`),
       );
       assert.ok(html.includes(`<g data-relation-label="${id}">`));
+    }
+    const nodeColors = new Map(
+      [
+        ...html.matchAll(
+          /<g[^>]*data-entity="([^"]+)"[^]*?<rect class="node-surface"[^>]*stroke="([^"]+)"/g,
+        ),
+      ].map(([, id, color]) => [id, color]),
+    );
+    for (const edge of compile(chart).scene.edges) {
+      const color = nodeColors.get(edge.from)!;
+      assert.ok(color);
+      const path = html.match(new RegExp(`<path data-relation="${edge.id}"[^>]+>`))![0];
+      const label = html.match(new RegExp(`<g data-relation-label="${edge.id}"[^]*?</g>`))![0];
+      assert.ok(path.includes(`stroke="${color}"`));
+      for (const [, fill] of label.matchAll(/<text[^>]*fill="([^"]+)"/g)) assert.equal(fill, color);
     }
     assert.match(html, /<style>@media screen \{/);
     assert.equal((html.match(/<script\b/g) ?? []).length, 1);
@@ -143,7 +184,7 @@ test("sequence self calls and returns retain their arrow and dashed-line semanti
   const rules = highlights(html);
   const self = rules.find((rule) => rule.id === "assemble-properties")!;
   assert.deepEqual(self.endpoints, ["renderer"]);
-  assert.match(self.declarations, /marker-end:url\(#highlight-arrow-generation-sequence\)/);
+  assert.match(self.declarations, /marker-end:url\(#arrow-generation-sequence\)/);
   const reply = rules.find((rule) => rule.id === "properties-ready")!;
   assert.deepEqual(reply.endpoints, ["renderer"]);
   assert.match(reply.declarations, /marker-end:url\(#highlight-return-arrow-generation-sequence\)/);
@@ -153,7 +194,7 @@ test("sequence self calls and returns retain their arrow and dashed-line semanti
   );
   assert.match(
     html,
-    /<marker id="highlight-return-arrow-generation-sequence"[^>]*>\s*<path[^>]*fill="none" stroke="var\(--viz-series-1\)"/,
+    /<marker id="highlight-return-arrow-generation-sequence"[^>]*>\s*<path[^>]*fill="none" stroke="context-stroke"/,
   );
   assert.ok(rules.every((rule) => !rule.declarations.includes("stroke-dasharray")));
 });
