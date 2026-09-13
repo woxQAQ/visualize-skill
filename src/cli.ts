@@ -4,7 +4,7 @@ import { dirname, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { parseArgs } from "node:util";
 import { randomUUID } from "node:crypto";
-import { compile, render, DiagnosticError } from "./index.ts";
+import { compile, render, renderPage, DiagnosticError } from "./index.ts";
 import { isDiagram } from "./sdk.ts";
 import { fail } from "./diagnostics.ts";
 
@@ -13,6 +13,7 @@ try {
   const { values, positionals } = parseArgs({
     options: {
       output: { type: "string", short: "o" },
+      format: { type: "string", default: "fragment" },
       check: { type: "boolean" },
       help: { type: "boolean", short: "h" },
     },
@@ -20,9 +21,16 @@ try {
   });
   if (values.help) {
     process.stdout.write(
-      "Usage: node <skill>/src/cli.ts <diagram.ts> [-o output.html] [--check]\nExecutes a local ES module. --check validates semantics and layout without writing HTML.\n",
+      "Usage: node <skill>/src/cli.ts <diagram.ts> [-o output.html] [--format page|fragment] [--check]\nExecutes a local ES module. page creates a standalone HTML document; fragment (default) inherits host colors. --check validates semantics and layout without writing HTML.\n",
     );
   } else {
+    if (values.format !== "page" && values.format !== "fragment")
+      fail(
+        "INVALID_FORMAT",
+        "format",
+        "输出格式必须是 page 或 fragment。",
+        "使用 --format page 生成独立页面，或 --format fragment 生成嵌入片段。",
+      );
     if (positionals.length !== 1 || (!values.check && !values.output))
       throw new Error(
         "需要一个 TypeScript 或 JavaScript 文件，以及 -o 输出路径或 --check。使用 --help 查看用法。",
@@ -43,7 +51,7 @@ try {
       process.stdout.write(`${JSON.stringify({ ok: true, diagram: module.default.id })}\n`);
     } else {
       if (!output) throw new Error("缺少输出路径。");
-      const html = render(module.default);
+      const html = values.format === "page" ? renderPage(module.default) : render(module.default);
       await mkdir(dirname(output), { recursive: true });
       temp = `${output}.${randomUUID()}.tmp`;
       await writeFile(temp, html, "utf8");

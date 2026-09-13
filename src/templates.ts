@@ -1,12 +1,13 @@
 import { readFileSync } from "node:fs";
 import { escape } from "./markup.ts";
 
-type TemplateName = "widget" | "figure" | "entity" | "entity-relations" | "entity-tags";
+type TemplateName = "page" | "widget" | "figure" | "entity" | "entity-relations" | "entity-tags";
 const templates = new Map<TemplateName, string>();
 const readAsset = (name: string) =>
   readFileSync(new URL(`./templates/${name}`, import.meta.url), "utf8");
 
 export const stylesheet = readAsset("diagram.css");
+export const pageStylesheet = readAsset("page.css");
 export const interactionScript = readAsset("interactions.js");
 
 // Slots are replaced once: ordinary values are escaped, triple braces accept

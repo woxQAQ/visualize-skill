@@ -1,5 +1,5 @@
 export { entity, role, architecture, sequence, swimlane } from "./sdk.ts";
-export { compile, render } from "./render.ts";
+export { compile, render, renderPage } from "./render.ts";
 export { DiagnosticError } from "./diagnostics.ts";
 
 export type {

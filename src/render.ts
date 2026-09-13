@@ -7,7 +7,7 @@ import { validate } from "./validate.ts";
 import { semanticDiagram } from "./sdk.ts";
 import { escape } from "./markup.ts";
 import { renderSvg } from "./render-svg.ts";
-import { interactionScript, renderTemplate, stylesheet } from "./templates.ts";
+import { interactionScript, pageStylesheet, renderTemplate, stylesheet } from "./templates.ts";
 
 function entityDetails(semantic: SemanticDiagram) {
   const { chart } = semantic;
@@ -110,5 +110,14 @@ export function render(diagram: Diagram) {
     }),
     details: entityDetails(semantic),
     script: interactionScript.replace("__ROOT_ID__", rootId),
+  });
+}
+
+export function renderPage(diagram: Diagram): string {
+  const content = render(diagram);
+  return renderTemplate("page", {
+    title: diagram.title,
+    stylesheet: pageStylesheet,
+    content,
   });
 }
