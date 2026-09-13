@@ -13,6 +13,7 @@ export type {
   Size,
   Relation,
   RelationInput,
+  RelationVariant,
   Diagram,
   Chart,
   SemanticDiagram,

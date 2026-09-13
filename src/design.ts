@@ -1,4 +1,4 @@
-import type { LayoutContext, SemanticDiagram, TextLayout } from "./model.ts";
+import type { LayoutContext, RelationVariant, SemanticDiagram, TextLayout } from "./model.ts";
 import { freeze, fail } from "./diagnostics.ts";
 
 export const theme = freeze({
@@ -17,6 +17,16 @@ export const theme = freeze({
     ink: `var(--viz-series-${index + 1})`,
     fill: `color-mix(in srgb, var(--viz-series-${index + 1}) 10%, var(--background))`,
   })),
+});
+
+export const relationStyles: Readonly<
+  Record<RelationVariant, { ink: string; width: number; dash: string; weight: number }>
+> = freeze({
+  default: { ink: "var(--viz-series-1)", width: 1.5, dash: "none", weight: 400 },
+  emphasis: { ink: "var(--viz-series-5)", width: 2.5, dash: "none", weight: 600 },
+  security: { ink: "var(--viz-series-2)", width: 1.5, dash: "none", weight: 400 },
+  dashed: { ink: "var(--viz-series-1)", width: 1.5, dash: "5 4", weight: 400 },
+  external: { ink: "var(--viz-series-3)", width: 1.5, dash: "8 3 2 3", weight: 400 },
 });
 
 const segmenter = new Intl.Segmenter("en", { granularity: "grapheme" });

@@ -1,5 +1,5 @@
 import type { Chart, LayoutContext, NodeLayout, Scene, TextLayout } from "./model.ts";
-import { theme, measure, nodeDetailsEnabled } from "./design.ts";
+import { theme, measure, nodeDetailsEnabled, relationStyles } from "./design.ts";
 import { escape, number } from "./markup.ts";
 
 function textBlock(
@@ -80,9 +80,10 @@ function arrowMarker(id: string, { returning = false, strokeWidth = 1.5 } = {}) 
 
 export function renderSvg(scene: Scene, chart: Chart, ctx: LayoutContext) {
   const callMarker = `arrow-${scene.id}`;
-  const returnMarker = `return-arrow-${scene.id}`;
-  const highlightReturnMarker = `highlight-return-arrow-${scene.id}`;
-  const nodeColors = new Map(scene.nodes.map((node) => [node.id, ctx.colors.get(node.role)!.ink]));
+  const returnMarker = (width: number) => `return-arrow-${scene.id}-${width}`;
+  const returnWidths = new Set(
+    Object.values(relationStyles).flatMap((style) => [style.width, style.width + 1]),
+  );
   const neighbors = new Map(scene.nodes.map((node) => [node.id, new Set([node.id])]));
   const incidentRelations = new Map(scene.nodes.map((node) => [node.id, new Set<string>()]));
   for (const edge of scene.edges) {
@@ -114,14 +115,15 @@ export function renderSvg(scene: Scene, chart: Chart, ctx: LayoutContext) {
     .join("");
   const highlights = scene.edges
     .map((edge) => {
+      const width = relationStyles[edge.variant].width + 1;
       const endpoints = [...new Set([edge.from, edge.to])]
         .map((id) => `[data-entity="${id}"] .node-link:is(:hover,:focus-visible)`)
         .join(",");
       const active = `#diagram-${scene.id} svg:has(${endpoints},${relationHover(edge.id)})`;
       return `
       ${active} [data-relation="${edge.id}"] {
-        opacity:1;stroke-width:2.5;
-        marker-end:url(#${edge.dashed ? highlightReturnMarker : callMarker});
+        opacity:1;stroke-width:${width};
+        marker-end:url(#${edge.returning ? returnMarker(width) : callMarker});
       }
       ${active} [data-relation-label="${edge.id}"] { opacity:1; }
       ${active} [data-relation-label="${edge.id}"] text { font-weight:600; }
@@ -167,14 +169,15 @@ export function renderSvg(scene: Scene, chart: Chart, ctx: LayoutContext) {
     )
     .join("");
   const edges = scene.edges
-    .map(
-      (edge) => `
-    <path data-relation="${edge.id}" d="${edge.path}" fill="none" stroke="${nodeColors.get(edge.from)}" stroke-width="1.5"
-      ${edge.dashed ? 'stroke-dasharray="5 4"' : ""} marker-end="url(#${edge.dashed ? returnMarker : callMarker})"/>
+    .map((edge) => {
+      const style = relationStyles[edge.variant];
+      return `
+    <path data-relation="${edge.id}" data-variant="${edge.variant}" d="${edge.path}" fill="none" stroke="${style.ink}" stroke-width="${style.width}"
+      stroke-dasharray="${edge.returning ? "5 4" : style.dash}" marker-end="url(#${edge.returning ? returnMarker(style.width) : callMarker})"/>
     <path data-relation-hit="${edge.id}" d="${edge.path}" fill="none" stroke="transparent" stroke-width="12"
       vector-effect="non-scaling-stroke" pointer-events="stroke" aria-hidden="true"/>
-  `,
-    )
+  `;
+    })
     .join("");
   const labels = scene.edges
     .map(
@@ -182,7 +185,7 @@ export function renderSvg(scene: Scene, chart: Chart, ctx: LayoutContext) {
     <g data-relation-label="${edge.id}">
       <rect x="${number(edge.labelX - 3)}" y="${number(edge.labelY - 2)}" width="${number(edge.label.width + 6)}"
         height="${edge.label.height + 4}" fill="${theme.surface}"/>
-      ${textBlock(edge.label, edge.labelX, edge.labelY, { fill: nodeColors.get(edge.from)! })}
+      ${textBlock(edge.label, edge.labelX, edge.labelY, { fill: relationStyles[edge.variant].ink, weight: relationStyles[edge.variant].weight })}
     </g>
   `,
     )
@@ -193,15 +196,14 @@ export function renderSvg(scene: Scene, chart: Chart, ctx: LayoutContext) {
       viewBox="0 0 ${scene.width} ${scene.height}" role="group"
       aria-labelledby="svg-title-${scene.id} svg-desc-${scene.id}" style="font-family:${theme.font};color:${theme.ink}">
       <title id="svg-title-${scene.id}">${escape(chart.title)}</title>
-      <desc id="svg-desc-${scene.id}">悬停或键盘聚焦节点时强调当前节点、直接相邻节点和相连关系，弱化其余节点与关系。悬停关系线或关系文字时，仅强调当前关系及其起点和终点。${nodeDetailsEnabled ? "点击节点或按 Enter 查看详细内容。" : ""}${scene.kind === "sequence" ? "实线表示同步调用，虚线表示返回，生命线上的矩形表示执行区间。" : scene.kind === "swimlane" ? "横向泳道表示负责的人或系统，节点表示流程活动，箭头和标签表示流转方向与条件。" : "虚线框表示逻辑分区，箭头表示依赖，关系文字直接标注在线旁。"}</desc>
+      <desc id="svg-desc-${scene.id}">悬停或键盘聚焦节点时强调当前节点、直接相邻节点和相连关系，弱化其余节点与关系。悬停关系线或关系文字时，仅强调当前关系及其起点和终点。${nodeDetailsEnabled ? "点击节点或按 Enter 查看详细内容。" : ""}${scene.kind === "sequence" ? "实心箭头表示同步调用，开口箭头与短虚线表示返回，生命线上的矩形表示执行区间。关系样式可以改变调用的线型。" : scene.kind === "swimlane" ? "横向泳道表示负责的人或系统，节点表示流程活动，箭头和标签表示流转方向与条件。" : "虚线框表示逻辑分区，箭头表示依赖，关系文字直接标注在线旁。"}</desc>
       <style>@media screen {
         #diagram-${scene.id} svg:has(.node-link:is(:hover,:focus-visible),[data-relation-hit]:hover,[data-relation-label]:hover) :is([data-entity],[data-relation],[data-relation-label]) { opacity:0.45; }
         ${nodeHighlights}${highlights}
       }</style>
       <defs>
         ${arrowMarker(callMarker)}
-        ${arrowMarker(returnMarker, { returning: true })}
-        ${arrowMarker(highlightReturnMarker, { returning: true, strokeWidth: 2.5 })}
+        ${[...returnWidths].map((width) => arrowMarker(returnMarker(width), { returning: true, strokeWidth: width })).join("")}
       </defs>
       ${partitions}${lanes}${lifelines}${frames(scene)}${activations}${edges}
       ${scene.nodes.map((node) => nodeMarkup(node, chart, ctx)).join("")}

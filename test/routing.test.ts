@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { architecture, compile, entity, role, swimlane } from "../src/index.ts";
-import type { EdgeLayout, NodeLayout, Point, Relation, Scene } from "../src/model.ts";
+import type { EdgeLayout, NodeLayout, Point, RelationInput, Scene } from "../src/model.ts";
 import { agentFlow, agentOverview } from "./fixtures/agent-routing.ts";
 import { overview as harnessOverview } from "./fixtures/harness-routing.ts";
 import { overlaps } from "../src/layout/routing.ts";
@@ -23,7 +23,7 @@ const nodes = [
   size: { width: 160, height: 80 },
 }));
 
-function sceneFor(kind: "architecture" | "swimlane", relations: Relation[]) {
+function sceneFor(kind: "architecture" | "swimlane", relations: RelationInput[]) {
   const options = { id: "ports", title: "连接点", nodes, relations };
   const chart =
     kind === "architecture"

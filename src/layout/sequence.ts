@@ -170,7 +170,7 @@ export function layoutSequence(chart: SequenceChart, ctx: LayoutContext): Sequen
         labelY: y,
         arrivalY,
         lineY,
-        dashed: returning,
+        returning,
       });
       y = arrivalY + 32;
     }

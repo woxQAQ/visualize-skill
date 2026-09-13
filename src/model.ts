@@ -40,15 +40,20 @@ export interface ArchitecturePartition {
   readonly position: Position;
   readonly size: Size;
 }
+export const relationVariants = ["default", "emphasis", "security", "dashed", "external"] as const;
+export type RelationVariant = (typeof relationVariants)[number];
+
 export interface Relation {
   readonly id: string;
   readonly from: string;
   readonly to: string;
   readonly label: string;
+  readonly variant: RelationVariant;
 }
-export type RelationInput = Omit<Relation, "from" | "to"> & {
+export type RelationInput = Omit<Relation, "from" | "to" | "variant"> & {
   readonly from: EntityRef;
   readonly to: EntityRef;
+  readonly variant?: RelationVariant;
 };
 export interface Call extends Relation {
   readonly kind: "call";
@@ -171,12 +176,13 @@ export interface EdgeLayout {
   id: string;
   from: string;
   to: string;
+  variant: RelationVariant;
   points: Point[];
   path: string;
   label: TextLayout;
   labelX: number;
   labelY: number;
-  dashed?: boolean;
+  returning?: boolean;
 }
 export interface SequenceEdgeLayout extends EdgeLayout {
   arrivalY: number;

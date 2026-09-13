@@ -9,6 +9,7 @@ import type {
   ArchitecturePartition,
   Position,
   Role,
+  RelationVariant,
   SemanticDiagram,
   SequenceChart,
   SequenceOptions,
@@ -18,6 +19,7 @@ import type {
   SwimlaneOptions,
   Tag,
 } from "./model.ts";
+import { relationVariants } from "./model.ts";
 import { array, fail, fields, freeze, identifier, string } from "./diagnostics.ts";
 
 const diagrams = new WeakSet<object>();
@@ -176,15 +178,28 @@ function architecturePartitions(values: unknown, path: string): ArchitecturePart
   });
 }
 
+function relationVariant(value: unknown, path: string): RelationVariant {
+  if (value === undefined) return "default";
+  if (!relationVariants.some((variant) => variant === value))
+    fail(
+      "INVALID_RELATION_VARIANT",
+      path,
+      "关系样式必须使用预设名称。",
+      `可用样式：${relationVariants.join(", ")}。`,
+    );
+  return value as RelationVariant;
+}
+
 function edges(values: unknown, path: string) {
   return array(values, path, { empty: true }).map((value, i) => {
     const p = `${path}[${i}]`;
-    fields(value, ["id", "from", "to", "label"], p);
+    fields(value, ["id", "from", "to", "label", "variant"], p);
     return {
       id: identifier(value.id, `${p}.id`),
       from: ref(value.from, `${p}.from`),
       to: ref(value.to, `${p}.to`),
       label: string(value.label, `${p}.label`),
+      variant: relationVariant(value.variant, `${p}.variant`),
     };
   });
 }
@@ -193,7 +208,7 @@ function steps(values: unknown, path: string, depth = 0): Step[] {
   if (depth > 3) fail("SEQUENCE_DEPTH", path, "条件分支超过三层。", "将深层条件拆成独立时序图。");
   return array(values, path).map((value, i) => {
     const p = `${path}[${i}]`;
-    fields(value, ["id", "kind", "branches", "from", "to", "label", "replyTo"], p);
+    fields(value, ["id", "kind", "branches", "from", "to", "label", "replyTo", "variant"], p);
     if (value.kind === "alternative") {
       fields(value, ["id", "kind", "branches"], p);
       const branches = array(value.branches, `${p}.branches`);
@@ -216,12 +231,13 @@ function steps(values: unknown, path: string, depth = 0): Step[] {
         }),
       };
     }
-    fields(value, ["id", "from", "to", "label", "replyTo"], p);
+    fields(value, ["id", "from", "to", "label", "replyTo", "variant"], p);
     const message = {
       id: identifier(value.id, `${p}.id`),
       from: ref(value.from, `${p}.from`),
       to: ref(value.to, `${p}.to`),
       label: string(value.label, `${p}.label`),
+      variant: relationVariant(value.variant, `${p}.variant`),
     };
     return value.replyTo === undefined
       ? { ...message, kind: "call" }

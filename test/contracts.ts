@@ -1,10 +1,32 @@
 // Compile-only checks: invalid declarations must fail before rendering.
 import { architecture, render, entity, role, sequence, swimlane } from "../src/index.ts";
-import type { SemanticDiagram, Step } from "../src/index.ts";
+import type { RelationInput, RelationVariant, SemanticDiagram, Step } from "../src/index.ts";
 
 const item = entity({ id: "item", label: "对象", tags: [{ id: "public", label: "公开" }] });
 const worker = role({ id: "worker", label: "处理者" });
 const size = { width: 220, height: 88 };
+
+const preset: RelationVariant = "security";
+const styledRelation: RelationInput = {
+  id: "access",
+  from: item,
+  to: item,
+  label: "授权",
+  variant: preset,
+};
+void styledRelation;
+// @ts-expect-error Only named relation presets are accepted.
+const unknownVariant: RelationVariant = "custom";
+void unknownVariant;
+const invalidStyle: RelationInput = {
+  id: "invalid-style",
+  from: item,
+  to: item,
+  label: "关系",
+  // @ts-expect-error Relations cannot supply arbitrary stroke colors.
+  stroke: "red",
+};
+void invalidStyle;
 
 architecture({
   id: "valid",

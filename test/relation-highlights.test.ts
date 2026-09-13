@@ -110,7 +110,7 @@ test("hovering a relation or its label emphasizes only that relation and its end
   }
 });
 
-test("every diagram colors relations by their source and highlights them from either endpoint", () => {
+test("default relations use the default preset and highlight from either endpoint", () => {
   const cases = [
     {
       chart: overview,
@@ -159,16 +159,8 @@ test("every diagram colors relations by their source and highlights them from ei
       );
       assert.ok(html.includes(`<g data-relation-label="${id}">`));
     }
-    const nodeColors = new Map(
-      [
-        ...html.matchAll(
-          /<g[^>]*data-entity="([^"]+)"[^]*?<rect class="node-surface"[^>]*stroke="([^"]+)"/g,
-        ),
-      ].map(([, id, color]) => [id, color]),
-    );
     for (const edge of compile(chart).scene.edges) {
-      const color = nodeColors.get(edge.from)!;
-      assert.ok(color);
+      const color = "var(--viz-series-1)";
       const path = html.match(new RegExp(`<path data-relation="${edge.id}"[^>]+>`))![0];
       const label = html.match(new RegExp(`<g data-relation-label="${edge.id}"[^]*?</g>`))![0];
       assert.ok(path.includes(`stroke="${color}"`));
@@ -187,14 +179,14 @@ test("sequence self calls and returns retain their arrow and dashed-line semanti
   assert.match(self.declarations, /marker-end:url\(#arrow-generation-sequence\)/);
   const reply = rules.find((rule) => rule.id === "properties-ready")!;
   assert.deepEqual(reply.endpoints, ["renderer"]);
-  assert.match(reply.declarations, /marker-end:url\(#highlight-return-arrow-generation-sequence\)/);
+  assert.match(reply.declarations, /marker-end:url\(#return-arrow-generation-sequence-2.5\)/);
   assert.match(
     html,
-    /<path data-relation="properties-ready"[^>]*stroke-dasharray="5 4"[^>]*marker-end="url\(#return-arrow-generation-sequence\)"/,
+    /<path data-relation="properties-ready"[^>]*stroke-dasharray="5 4"[^>]*marker-end="url\(#return-arrow-generation-sequence-1\.5\)"/,
   );
   assert.match(
     html,
-    /<marker id="highlight-return-arrow-generation-sequence"[^>]*>\s*<path[^>]*fill="none" stroke="context-stroke"/,
+    /<marker id="return-arrow-generation-sequence-2.5"[^>]*>\s*<path[^>]*fill="none" stroke="context-stroke"/,
   );
   assert.ok(rules.every((rule) => !rule.declarations.includes("stroke-dasharray")));
 });
@@ -209,8 +201,8 @@ test("return arrow geometry is fixed, padded and continuously connected in both 
   );
   const readAttribute = (content: string, name: string) =>
     content.match(new RegExp(`\\b${name}="([^"]+)"`))?.[1];
-  const normal = markers.get("return-arrow-generation-sequence")!;
-  const highlighted = markers.get("highlight-return-arrow-generation-sequence")!;
+  const normal = markers.get("return-arrow-generation-sequence-1.5")!;
+  const highlighted = markers.get("return-arrow-generation-sequence-2.5")!;
   for (const content of markers.values())
     assert.equal(readAttribute(content, "markerUnits"), "userSpaceOnUse");
   for (const attribute of ["markerWidth", "markerHeight", "viewBox", "refX", "refY", "d"]) {
