@@ -20,8 +20,8 @@ export const generation = sequence({
     { entity: layout, role: presentation, size: { width: 136, height: 56 } },
     { entity: renderer, role: presentation, size: { width: 136, height: 56 } },
   ],
-  steps: [
-    { id: "submit", from: sdk, to: coordinator, label: "生成图表" },
+  messages: [
+    { id: "submit", from: sdk, to: coordinator, label: "生成图表", variant: "emphasis" },
     { id: "check", from: coordinator, to: validator, label: "检查语义" },
     { id: "checked", from: validator, to: coordinator, label: "检查结果", replyTo: "check" },
     {
@@ -30,7 +30,7 @@ export const generation = sequence({
       branches: [
         {
           label: "检查通过",
-          steps: [
+          messages: [
             { id: "place", from: coordinator, to: layout, label: "计算布局" },
             { id: "placed", from: layout, to: coordinator, label: "几何结果", replyTo: "place" },
             { id: "paint", from: coordinator, to: renderer, label: "渲染 HTML" },
@@ -49,12 +49,19 @@ export const generation = sequence({
               label: "图形片段",
               replyTo: "paint",
             },
-            { id: "built", from: coordinator, to: sdk, label: "返回图形", replyTo: "submit" },
+            {
+              id: "built",
+              from: coordinator,
+              to: sdk,
+              label: "返回图形",
+              replyTo: "submit",
+              variant: "emphasis",
+            },
           ],
         },
         {
           label: "检查失败",
-          steps: [
+          messages: [
             { id: "diagnostic", from: coordinator, to: sdk, label: "返回诊断", replyTo: "submit" },
           ],
         },

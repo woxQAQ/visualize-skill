@@ -34,8 +34,8 @@ export type {
   Call,
   Return,
   Alternative,
-  Step,
-  StepInput,
+  Message,
+  MessageInput,
 } from "./model.ts";
 export type { Diagnostic } from "./diagnostics.ts";
 export type { Lane, SwimlaneNode, SwimlaneOptions, SwimlaneChart, SwimlaneScene } from "./model.ts";

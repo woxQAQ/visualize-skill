@@ -69,17 +69,17 @@ export interface Return extends Omit<Relation, "fromSide" | "toSide"> {
 export interface Alternative {
   readonly id: string;
   readonly kind: "alternative";
-  readonly branches: readonly { readonly label: string; readonly steps: readonly Step[] }[];
+  readonly branches: readonly { readonly label: string; readonly messages: readonly Message[] }[];
 }
-export type Step = Call | Return | Alternative;
-export type StepInput =
+export type Message = Call | Return | Alternative;
+export type MessageInput =
   | (Omit<RelationInput, "fromSide" | "toSide"> & { readonly replyTo?: string })
   | {
       readonly id: string;
       readonly kind: "alternative";
       readonly branches: readonly {
         readonly label: string;
-        readonly steps: readonly StepInput[];
+        readonly messages: readonly MessageInput[];
       }[];
     };
 export interface ArchitectureChart<E = string, R = string> {
@@ -95,7 +95,7 @@ export interface SequenceChart<E = string, R = string> {
   readonly id: string;
   readonly title: string;
   readonly participants: readonly Participant<E, R>[];
-  readonly steps: readonly Step[];
+  readonly messages: readonly Message[];
 }
 export interface Lane {
   readonly id: string;
@@ -132,7 +132,7 @@ export interface SequenceOptions {
   readonly id: string;
   readonly title: string;
   readonly participants: readonly Participant<EntityInput, Role>[];
-  readonly steps: readonly StepInput[];
+  readonly messages: readonly MessageInput[];
 }
 export interface SwimlaneOptions {
   readonly id: string;

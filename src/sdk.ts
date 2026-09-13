@@ -15,7 +15,7 @@ import type {
   SequenceChart,
   SequenceOptions,
   Size,
-  Step,
+  Message,
   SwimlaneChart,
   SwimlaneOptions,
   Tag,
@@ -229,7 +229,7 @@ function edges(values: unknown, path: string) {
   });
 }
 
-function steps(values: unknown, path: string, depth = 0): Step[] {
+function messages(values: unknown, path: string, depth = 0): Message[] {
   if (depth > 3) fail("SEQUENCE_DEPTH", path, "条件分支超过三层。", "将深层条件拆成独立时序图。");
   return array(values, path).map((value, i) => {
     const p = `${path}[${i}]`;
@@ -248,10 +248,10 @@ function steps(values: unknown, path: string, depth = 0): Step[] {
         id: identifier(value.id, `${p}.id`),
         kind: "alternative",
         branches: branches.map((branch, j) => {
-          fields(branch, ["label", "steps"], `${p}.branches[${j}]`);
+          fields(branch, ["label", "messages"], `${p}.branches[${j}]`);
           return {
             label: string(branch.label, `${p}.branches[${j}].label`),
-            steps: steps(branch.steps, `${p}.branches[${j}].steps`, depth + 1),
+            messages: messages(branch.messages, `${p}.branches[${j}].messages`, depth + 1),
           };
         }),
       };
@@ -283,13 +283,13 @@ export function architecture(options: ArchitectureOptions): ArchitectureChart<En
 }
 
 export function sequence(options: SequenceOptions): SequenceChart<Entity, Role> {
-  fields(options, ["id", "title", "participants", "steps"], "sequence");
+  fields(options, ["id", "title", "participants", "messages"], "sequence");
   return diagram({
     kind: "sequence",
     id: identifier(options.id, "sequence.id"),
     title: string(options.title, "sequence.title"),
     participants: participants(options.participants, "sequence.participants"),
-    steps: steps(options.steps, "sequence.steps"),
+    messages: messages(options.messages, "sequence.messages"),
   });
 }
 

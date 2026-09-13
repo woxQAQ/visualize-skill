@@ -7,7 +7,7 @@ import type {
   SequenceChart,
   SequenceEdgeLayout,
   SequenceScene,
-  Step,
+  Message,
 } from "../model.ts";
 
 interface Execution {
@@ -67,13 +67,13 @@ export function layoutSequence(chart: SequenceChart, ctx: LayoutContext): Sequen
       : centers.get(entity)!;
   }
 
-  function walk(steps: readonly Step[], stack: Execution[], depth = 0): Execution[] {
-    for (const step of steps) {
-      if (step.kind === "alternative") {
+  function walk(messages: readonly Message[], stack: Execution[], depth = 0): Execution[] {
+    for (const message of messages) {
+      if (message.kind === "alternative") {
         endSegments(stack, y);
         const inherited = stack.map((frame) => frame.call);
         const fragment: Fragment = {
-          id: step.id,
+          id: message.id,
           operator: "alt",
           height: 0,
           x: 12 + depth * 10,
@@ -84,17 +84,17 @@ export function layoutSequence(chart: SequenceChart, ctx: LayoutContext): Sequen
         fragments.push(fragment);
         y += 32;
         let exitCalls: Call[] = [];
-        for (const branch of step.branches) {
+        for (const branch of message.branches) {
           const label = wrap(
             `[${branch.label}]`,
             width - 80,
-            `diagram.${chart.id}.${step.id}.branch`,
+            `diagram.${chart.id}.${message.id}.branch`,
             3,
             12,
           );
           fragment.branches.push({ y, label });
           y += label.height + 18;
-          const branchStack = walk(branch.steps, resume(inherited, y), depth + 1);
+          const branchStack = walk(branch.messages, resume(inherited, y), depth + 1);
           endSegments(branchStack, y);
           exitCalls = branchStack.map((frame) => frame.call);
           y += 12;
@@ -105,45 +105,45 @@ export function layoutSequence(chart: SequenceChart, ctx: LayoutContext): Sequen
         continue;
       }
 
-      const returning = step.kind === "return";
-      const self = step.from === step.to;
-      const direction = centers.get(step.to)! >= centers.get(step.from)! ? 1 : -1;
-      const participantIndex = nodes.findIndex((node) => node.id === step.from);
+      const returning = message.kind === "return";
+      const self = message.from === message.to;
+      const direction = centers.get(message.to)! >= centers.get(message.from)! ? 1 : -1;
+      const participantIndex = nodes.findIndex((node) => node.id === message.from);
       const selfLabelOnLeft = self && participantIndex === nodes.length - 1 && participantIndex > 0;
       const selfLabelWidth = selfLabelOnLeft
-        ? centers.get(step.from)! - centers.get(nodes[participantIndex - 1].id)! - 48
+        ? centers.get(message.from)! - centers.get(nodes[participantIndex - 1].id)! - 48
         : participantIndex < nodes.length - 1
-          ? centers.get(nodes[participantIndex + 1].id)! - centers.get(step.from)! - 64
+          ? centers.get(nodes[participantIndex + 1].id)! - centers.get(message.from)! - 64
           : 120;
       const labelWidth = self
         ? Math.min(120, selfLabelWidth)
-        : Math.abs(centers.get(step.to)! - centers.get(step.from)!) - 42;
+        : Math.abs(centers.get(message.to)! - centers.get(message.from)!) - 42;
       if (labelWidth < 12) {
         fail(
           "SEQUENCE_LABEL_SPACE",
-          `diagram.${chart.id}.${step.id}`,
+          `diagram.${chart.id}.${message.id}`,
           "参与者之间没有足够空间放置消息标签。",
           "增加相关参与者的 size.width。",
         );
       }
       const label = wrap(
-        `${++count}. ${step.label}`,
+        `${++count}. ${message.label}`,
         labelWidth,
-        `diagram.${chart.id}.${step.id}.label`,
+        `diagram.${chart.id}.${message.id}.label`,
         6,
         12,
       );
       const lineY = y + label.height + 8;
       const arrivalY = lineY + (self ? 28 : 0);
-      const fromX = anchor(step.from, stack, self ? 1 : direction);
+      const fromX = anchor(message.from, stack, self ? 1 : direction);
       let toX;
 
       if (returning) {
         const completed = stack.pop()!;
         completed.activation.height = lineY - completed.activation.y;
-        toX = anchor(step.to, stack, self ? 1 : -direction);
+        toX = anchor(message.to, stack, self ? 1 : -direction);
       } else {
-        const frame = activate(step, stack, arrivalY);
+        const frame = activate(message, stack, arrivalY);
         stack.push(frame);
         toX = frame.activation.x + (self || direction < 0 ? frame.activation.width : 0);
       }
@@ -160,12 +160,12 @@ export function layoutSequence(chart: SequenceChart, ctx: LayoutContext): Sequen
             [toX, lineY],
           ];
       edges.push({
-        ...step,
+        ...message,
         points,
         path: path(points),
         label,
         labelX: self
-          ? centers.get(step.from)! + (selfLabelOnLeft ? -label.width - 24 : 40)
+          ? centers.get(message.from)! + (selfLabelOnLeft ? -label.width - 24 : 40)
           : Math.min(fromX, toX) + 12,
         labelY: y,
         arrivalY,
@@ -177,7 +177,7 @@ export function layoutSequence(chart: SequenceChart, ctx: LayoutContext): Sequen
     return stack;
   }
 
-  walk(chart.steps, []);
+  walk(chart.messages, []);
   const finalWidth = Math.max(
     width,
     ...edges.flatMap((edge) => [

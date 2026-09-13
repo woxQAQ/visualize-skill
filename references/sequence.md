@@ -2,7 +2,9 @@
 
 [公共接口](api.md) · [架构图](architecture.md)
 
-`sequence(options)` 接收必填的 `id`、`title`、`participants` 和 `steps`。参与者和步骤数组均不能为空。
+`sequence(options)` 接收必填的 `id`、`title`、`participants` 和 `messages`。参与者和消息数组均不能为空。
+
+`MessageInput` 表示输入的消息或条件片段，`Message` 表示 SDK 规范化后的对应数据。顶层与条件分支均通过 `messages` 按顺序声明内容。
 
 ## 参与者
 
@@ -12,13 +14,29 @@
 
 普通消息包含 `id`、`from`、`to`、`label`，以及可选的 `variant`，预设定义见[关系样式](api.md#关系样式)。它表示同步调用；增加 `replyTo` 后表示返回。不要为普通消息手工填写 `kind`。时序消息不接受 `fromSide`、`toSide`，连接位置由生命线和执行区间决定。
 
+`variant` 与 `relations` 共用 `RelationVariant` 类型和五种预设：`default`、`emphasis`、`security`、`dashed`、`external`。省略时使用 `default`，调用和返回分别声明，不自动继承；条件片段不接受 `variant`。
+
+```ts
+messages: [
+  { id: "authorize", from: caller, to: service, label: "校验权限", variant: "security" },
+  {
+    id: "authorized",
+    from: service,
+    to: caller,
+    label: "权限结果",
+    replyTo: "authorize",
+    variant: "security",
+  },
+];
+```
+
 消息端点可传对象或标识字符串，两端都必须出现在当前图的参与者中。实心箭头表示调用，开口箭头和短虚线表示返回。调用线型可通过 `variant` 改变，返回始终保留短虚线；接收调用时开始执行区间，返回时结束。调用必须配对返回，返回端点与调用相反。先返回内层调用，再返回外层调用；等待同步调用的参与者不能继续发出其他调用。`from` 和 `to` 相同表示自调用，仍需要返回消息。
 
 消息标签优先写调用名称或动作，把不影响理解的参数列表和完整返回结构放进正文或对象详情。检查编号加入后的实际断行，尤其是中英文混排和自调用；需要多行时保留完整术语，避免单字尾行。文本排版会在宽度允许时把中文单字尾行与前一个完整词合并，但不会理解所有领域术语，也不会跨越显式换行调整文本。
 
 ## 互斥分支
 
-条件片段使用 `kind: 'alternative'`，包含 `id` 和至少两个 `branches`。每个分支包含非空 `label` 和非空 `steps`。
+条件片段使用 `kind: 'alternative'`，包含 `id` 和至少两个 `branches`。每个分支包含非空 `label` 和非空 `messages`。
 
 分支各自从进入片段时的调用状态开始，结束时必须留下相同的未完成调用。可以在所有分支中结束同一个外层调用，也可以统一在片段之后返回。分支内发起的调用须在该分支内结束，不能被其他分支引用。当前没有异步消息、循环片段或并发片段接口。
 

@@ -58,7 +58,7 @@ export function validate(doc: SemanticDiagram): SemanticDiagram {
       add(
         "DUPLICATE_RELATION",
         p,
-        "关系或步骤标识重复。",
+        "关系或消息标识重复。",
         "为每条关系、消息和条件分支设置唯一标识。",
       );
     seen.add(value.id);
