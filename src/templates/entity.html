@@ -1,16 +1,16 @@
-<details>
-  <summary>{{label}}</summary>
-  <article id="details-{{id}}" tabindex="-1">
-    <header class="entity-header">
-      <h2 id="detail-title-{{id}}">{{label}}</h2>
-      <p class="detail-context" data-detail-context hidden></p>
-    </header>
-    <dl class="entity-facts">
-      <div>
-        <dt>标识</dt>
-        <dd><code>{{id}}</code></dd>
-      </div>
-    </dl>
-    {{{tags}}} {{{appearances}}} {{{locations}}}
-  </article>
-</details>
+<article id="details-{{id}}" hidden>
+  <h2 id="detail-title-{{id}}">{{label}}</h2>
+  {{{description}}}
+  <dl class="entity-facts">
+    <div>
+      <dt>标识</dt>
+      <dd><code>{{id}}</code></dd>
+    </div>
+    <div>
+      <dt>角色</dt>
+      <dd>{{role}}</dd>
+    </div>
+    {{{membership}}}
+  </dl>
+  {{{tags}}} {{{relations}}}
+</article>

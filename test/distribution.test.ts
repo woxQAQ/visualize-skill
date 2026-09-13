@@ -20,20 +20,23 @@ test("copied skill runs from source without installation or build artifacts", as
   await assert.rejects(access(join(dir, "node_modules")));
   await assert.rejects(access(join(dir, "dist")));
   const cli = join(dir, "src/cli.ts");
-  const output = join(dir, "report.html");
-  await exec(process.execPath, [cli, join(dir, "examples/self-explanation.ts"), "-o", output], {
+  const output = join(dir, "diagram.html");
+  await exec(process.execPath, [cli, join(dir, "examples/architecture.ts"), "-o", output], {
     cwd: tmpdir(),
   });
   const html = await readFile(output, "utf8");
-  assert.match(html, /用图表探索这套系统/);
+  assert.match(html, /系统架构：声明入口与生成分区/);
   assert.match(html, /data-entity-detail="details-sdk"/);
-  const css = await readFile(join(dir, "src/templates/report.css"), "utf8");
+  const css = await readFile(join(dir, "src/templates/diagram.css"), "utf8");
   const embeddedCss = html.match(/<style>([\s\S]*?)<\/style>/)?.[1];
   assert.equal(embeddedCss?.trim(), css.trim());
   const script = html.match(/<script data-visualize-interaction>([\s\S]*?)<\/script>/)?.[1];
   assert.ok(script);
   const interactionScript = await readFile(join(dir, "src/templates/interactions.js"), "utf8");
-  assert.equal(script.trim(), interactionScript.trim());
+  assert.equal(
+    script.trim(),
+    interactionScript.replace("__ROOT_ID__", "visualize-system-architecture").trim(),
+  );
   assert.doesNotThrow(() => new Script(script));
   assert.doesNotMatch(html, /<link|\bsrc=/);
 
@@ -49,17 +52,17 @@ test("copied skill runs from source without installation or build artifacts", as
   t.after(() => rm(external, { recursive: true, force: true }));
   const entry = pathToFileURL(join(dir, "src/index.ts")).href;
   await writeFile(
-    join(external, "report.ts"),
+    join(external, "diagram.ts"),
     `
-import { document, entity, role, architecture } from ${JSON.stringify(entry)};
+import { entity, role, architecture } from ${JSON.stringify(entry)};
 const item = entity({ id: 'item', label: '实际对象' });
 const worker = role({ id: 'worker', label: '处理者' });
-export default document().diagram(architecture({ id: 'external', title: '外部内容脚本',
-  nodes: [{ entity: item, role: worker, position: { x: 0, y: 0 }, size: { width: 220, height: 88 } }], relations: [] }));
+export default architecture({ id: 'external', title: '外部内容脚本',
+  nodes: [{ entity: item, role: worker, position: { x: 0, y: 0 }, size: { width: 220, height: 88 } }], relations: [] });
 `,
   );
-  const checked = await exec(process.execPath, [cli, "report.ts", "--check"], { cwd: external });
-  assert.deepEqual(JSON.parse(checked.stdout), { ok: true, diagrams: 1 });
-  await exec(process.execPath, [cli, "report.ts", "-o", "report.html"], { cwd: external });
-  assert.match(await readFile(join(external, "report.html"), "utf8"), /外部内容脚本/);
+  const checked = await exec(process.execPath, [cli, "diagram.ts", "--check"], { cwd: external });
+  assert.deepEqual(JSON.parse(checked.stdout), { ok: true, diagram: "external" });
+  await exec(process.execPath, [cli, "diagram.ts", "-o", "diagram.html"], { cwd: external });
+  assert.match(await readFile(join(external, "diagram.html"), "utf8"), /外部内容脚本/);
 });

@@ -126,7 +126,7 @@ function labelPositions(
   labelObstacles: Rect[],
   bounds?: Rect,
 ): Position[] {
-  const candidates = [];
+  const candidates: Position[] = [];
   for (let i = 1; i < points.length; i++) {
     const a = points[i - 1],
       b = points[i];

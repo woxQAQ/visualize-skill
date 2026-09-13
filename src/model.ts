@@ -40,15 +40,20 @@ export interface ArchitecturePartition {
   readonly position: Position;
   readonly size: Size;
 }
+export const relationVariants = ["default", "emphasis", "security", "dashed", "external"] as const;
+export type RelationVariant = (typeof relationVariants)[number];
+
 export interface Relation {
   readonly id: string;
   readonly from: string;
   readonly to: string;
   readonly label: string;
+  readonly variant: RelationVariant;
 }
-export type RelationInput = Omit<Relation, "from" | "to"> & {
+export type RelationInput = Omit<Relation, "from" | "to" | "variant"> & {
   readonly from: EntityRef;
   readonly to: EntityRef;
+  readonly variant?: RelationVariant;
 };
 export interface Call extends Relation {
   readonly kind: "call";
@@ -135,44 +140,11 @@ export interface SwimlaneOptions {
   readonly relations: readonly RelationInput[];
 }
 
-export type Inline =
-  | { readonly kind: "text" | "code"; readonly text: string }
-  | { readonly kind: "strong" | "emphasis"; readonly children: readonly Inline[] }
-  | {
-      readonly kind: "link";
-      readonly href: string;
-      readonly title?: string;
-      readonly children: readonly Inline[];
-    }
-  | { readonly kind: "break" };
-export type TableAlignment = "left" | "center" | "right" | null;
-export type MarkdownBlock =
-  | { readonly kind: "paragraph"; readonly children: readonly Inline[] }
-  | { readonly kind: "heading"; readonly level: number; readonly children: readonly Inline[] }
-  | { readonly kind: "codeBlock"; readonly language: string; readonly text: string }
-  | {
-      readonly kind: "list";
-      readonly ordered: boolean;
-      readonly start: number;
-      readonly tight: boolean;
-      readonly items: readonly (readonly MarkdownBlock[])[];
-    }
-  | { readonly kind: "blockquote"; readonly children: readonly MarkdownBlock[] }
-  | {
-      readonly kind: "table";
-      readonly align: readonly TableAlignment[];
-      readonly header: readonly (readonly Inline[])[];
-      readonly rows: readonly (readonly (readonly Inline[])[])[];
-    }
-  | { readonly kind: "thematicBreak" };
-export type Block<C = Chart> =
-  | { readonly kind: "markdown"; readonly content: readonly MarkdownBlock[] }
-  | { readonly kind: "diagram"; readonly content: C };
-export interface SemanticDocument {
+export interface SemanticDiagram {
   readonly version: 1;
   readonly entities: readonly Entity[];
   readonly roles: readonly Role[];
-  readonly blocks: readonly Block[];
+  readonly chart: Chart;
 }
 
 export type Point = [x: number, y: number];
@@ -204,12 +176,13 @@ export interface EdgeLayout {
   id: string;
   from: string;
   to: string;
+  variant: RelationVariant;
   points: Point[];
   path: string;
   label: TextLayout;
   labelX: number;
   labelY: number;
-  dashed?: boolean;
+  returning?: boolean;
 }
 export interface SequenceEdgeLayout extends EdgeLayout {
   arrivalY: number;

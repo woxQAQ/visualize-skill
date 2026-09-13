@@ -1,0 +1,172 @@
+.diagram-widget {
+  --node-shadow-color: color-mix(in srgb, var(--foreground) 24%, transparent);
+  color: var(--foreground);
+  background: var(--background);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 14px;
+  line-height: 1.6;
+  padding: 16px;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+.diagram-widget *,
+.diagram-widget *::before,
+.diagram-widget *::after {
+  box-sizing: border-box;
+}
+.diagram-widget [hidden] {
+  display: none !important;
+}
+.diagram-widget figure {
+  margin: 0;
+}
+.diagram-widget figcaption {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--foreground);
+  overflow-wrap: anywhere;
+}
+.diagram-widget .legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  margin: 10px 0;
+  font-size: 12px;
+  color: var(--muted-foreground);
+}
+.diagram-widget .legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.diagram-widget .legend i {
+  display: inline-block;
+  flex-shrink: 0;
+  width: 10px;
+  height: 10px;
+  border: 1px solid var(--role-color);
+  background: var(--role-fill);
+}
+.diagram-widget .diagram-viewport {
+  padding-bottom: 8px;
+}
+.diagram-widget svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin-inline: auto;
+}
+.diagram-widget .node-link {
+  cursor: default;
+  text-decoration: none;
+}
+.diagram-widget .node-link[href] {
+  cursor: pointer;
+}
+.diagram-widget .node-link:focus:not(:focus-visible) {
+  outline: none;
+}
+.diagram-widget svg [data-located] .node-surface {
+  stroke-width: 3.5;
+}
+.diagram-widget a {
+  color: var(--primary);
+}
+.diagram-widget a:focus-visible,
+.diagram-widget button:focus-visible,
+.diagram-widget .node-link:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 3px;
+}
+.diagram-widget .node-details {
+  color: var(--popover-foreground);
+  background: var(--popover);
+  font: inherit;
+  position: fixed;
+  inset: auto;
+  width: min(360px, calc(100% - 32px));
+  max-height: min(420px, calc(100% - 32px));
+  margin: 0;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: auto;
+  box-shadow: 0 4px 16px color-mix(in srgb, var(--foreground) 15%, transparent);
+}
+.diagram-widget button {
+  font: inherit;
+  color: var(--foreground);
+  background: var(--muted);
+  border: 1px solid var(--border);
+  padding: 6px 12px;
+  cursor: pointer;
+}
+.diagram-widget h2 {
+  color: var(--foreground);
+  font-size: 18px;
+  font-weight: 600;
+  margin: 12px 0 8px;
+}
+.diagram-widget h3 {
+  color: var(--foreground);
+  font-size: 14px;
+  font-weight: 600;
+  margin: 12px 0 8px;
+}
+.diagram-widget p {
+  margin: 8px 0;
+  overflow-wrap: anywhere;
+}
+.diagram-widget .entity-facts {
+  margin: 8px 0;
+}
+.diagram-widget .entity-facts div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+}
+.diagram-widget dt {
+  color: var(--muted-foreground);
+}
+.diagram-widget dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.diagram-widget code {
+  color: var(--foreground);
+  background: var(--muted);
+}
+.diagram-widget .entity-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  padding: 0;
+  list-style: none;
+  color: var(--muted-foreground);
+}
+.diagram-widget .entity-relations {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+.diagram-widget .entity-relations th,
+.diagram-widget .entity-relations td {
+  text-align: left;
+  padding: 8px 4px;
+  border-bottom: 1px solid var(--border);
+  overflow-wrap: anywhere;
+}
+.diagram-widget .entity-relations th:first-child {
+  width: 48px;
+}
+@media screen {
+  .diagram-widget .node-surface {
+    filter: var(--node-elevation, none);
+  }
+  .diagram-widget .node-link:is(:hover, :focus-visible) {
+    --node-elevation: drop-shadow(0 5px 7px var(--node-shadow-color));
+  }
+}

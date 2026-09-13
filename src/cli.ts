@@ -5,7 +5,7 @@ import { pathToFileURL } from "node:url";
 import { parseArgs } from "node:util";
 import { randomUUID } from "node:crypto";
 import { compile, render, DiagnosticError } from "./index.ts";
-import { isDocument } from "./sdk.ts";
+import { isDiagram } from "./sdk.ts";
 import { fail } from "./diagnostics.ts";
 
 let temp: string | undefined;
@@ -20,7 +20,7 @@ try {
   });
   if (values.help) {
     process.stdout.write(
-      "Usage: node <skill>/src/cli.ts <report.ts> [-o output.html] [--check]\nExecutes a local ES module. --check validates semantics and layout without writing HTML.\n",
+      "Usage: node <skill>/src/cli.ts <diagram.ts> [-o output.html] [--check]\nExecutes a local ES module. --check validates semantics and layout without writing HTML.\n",
     );
   } else {
     if (positionals.length !== 1 || (!values.check && !values.output))
@@ -31,16 +31,16 @@ try {
     const output = values.output ? resolve(values.output) : null;
     if (input === output) throw new Error("输出路径不能覆盖输入脚本。");
     const module: { default?: unknown } = await import(pathToFileURL(input).href);
-    if (!isDocument(module.default))
+    if (!isDiagram(module.default))
       fail(
-        "INVALID_DOCUMENT",
+        "INVALID_DIAGRAM",
         "export.default",
-        "默认导出必须是 SDK 的 document() 结果。",
-        "使用 export default document().markdown(...).diagram(...)。",
+        "默认导出必须是 SDK 创建的图表。",
+        "直接导出 architecture(...)、sequence(...) 或 swimlane(...)。",
       );
     if (values.check) {
-      const result = compile(module.default);
-      process.stdout.write(`${JSON.stringify({ ok: true, diagrams: result.scenes.length })}\n`);
+      compile(module.default);
+      process.stdout.write(`${JSON.stringify({ ok: true, diagram: module.default.id })}\n`);
     } else {
       if (!output) throw new Error("缺少输出路径。");
       const html = render(module.default);

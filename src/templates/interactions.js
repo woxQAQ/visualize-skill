@@ -1,115 +1,59 @@
-// Enhance ordinary document links with a native dialog. The original articles
-// stay in the document, so the same links remain usable without JavaScript.
+// Keep selection and navigation inside this diagram's host fragment.
 (function initializeInteractions() {
-  const dialog = document.getElementById("node-details");
-  if (!(dialog instanceof HTMLDialogElement)) return;
-  const content = dialog.querySelector("[data-detail-content]");
-  if (!content) return;
-
-  /** @type {HTMLElement | null} */
-  let current = null;
-  /** @type {Comment | null} */
-  let placeholder = null;
-  /** @type {Element | null} */
-  let origin = null;
-  /** @type {string | null} */
-  let pendingLocation = null;
+  const root = document.getElementById("__ROOT_ID__");
+  if (!root) return;
+  const panel = root.querySelector("[data-details]");
+  const viewport = root.querySelector(".diagram-viewport");
+  if (!(panel instanceof HTMLElement) || !(viewport instanceof HTMLElement)) return;
+  let origin = /** @type {Element | null} */ (null);
   /** @param {Element | null} element */
   const focus = (element) => {
     if (element instanceof HTMLElement || element instanceof SVGElement)
       element.focus({ preventScroll: true });
   };
-  const restore = () => {
-    if (current && placeholder) {
-      current.querySelectorAll("[hidden]").forEach((element) => {
-        if (element instanceof HTMLElement) element.hidden = false;
-      });
-      current.removeAttribute("data-contextual");
-      const caption = current.querySelector("[data-detail-context]");
-      if (caption instanceof HTMLElement) caption.hidden = true;
-      const heading = current.querySelector("[data-location-heading]");
-      if (heading) heading.textContent = "在图中定位";
-      placeholder.replaceWith(current);
+  const clearLocation = () =>
+    root.querySelectorAll("[data-located]").forEach((node) => node.removeAttribute("data-located"));
+  const positionDetails = () => {
+    if (!origin || !panel.matches(":popover-open")) return;
+    if (!origin.getClientRects().length) {
+      panel.hidePopover();
+      return;
     }
-    current = null;
-    placeholder = null;
+    const anchor = origin.getBoundingClientRect();
+    const bounds = root.getBoundingClientRect();
+    const left = Math.max(16, bounds.left + 8);
+    const right = Math.min(document.documentElement.clientWidth - 16, bounds.right - 8);
+    const top = Math.max(16, bounds.top + 8);
+    const bottom = Math.min(document.documentElement.clientHeight - 16, bounds.bottom - 8);
+    panel.style.width = `${Math.min(360, right - left)}px`;
+    panel.style.maxHeight = `${Math.max(0, Math.min(420, bottom - top))}px`;
+    const box = panel.getBoundingClientRect();
+    // Prefer the side with room; on narrow diagrams use the space below the node.
+    let x = anchor.right + 12;
+    let y = anchor.top;
+    if (x + box.width > right) {
+      if (anchor.left - 12 - box.width >= left) x = anchor.left - 12 - box.width;
+      else {
+        x = anchor.left;
+        y = anchor.bottom + 12;
+        if (y + box.height > bottom) y = anchor.top - 12 - box.height;
+      }
+    }
+    panel.style.left = `${Math.max(left, Math.min(x, right - box.width))}px`;
+    panel.style.top = `${Math.max(top, Math.min(y, bottom - box.height))}px`;
   };
-  /** @param {string} id @param {string | null} chartId */
-  const show = (id, chartId) => {
-    const article = document.getElementById(id);
-    if (!article || article === current) return;
-    restore();
-    current = article;
-    placeholder = document.createComment("entity detail position");
-    article.replaceWith(placeholder);
-    content.append(article);
-    const sections = /** @type {NodeListOf<HTMLElement>} */ (
-      article.querySelectorAll("[data-detail-chart]")
-    );
-    const section = [...sections].find((element) => element.dataset.detailChart === chartId);
-    const chart = section ? chartId : null;
-    const caption = /** @type {HTMLElement} */ (article.querySelector("[data-detail-context]"));
-    caption.hidden = !section;
-    caption.textContent = section?.querySelector("h3")?.textContent ?? "";
-    article.toggleAttribute("data-contextual", !!section);
-    sections.forEach((element) => {
-      element.hidden = element !== section;
+  panel.addEventListener("beforetoggle", (event) => {
+    if (event.newState !== "closed") return;
+    if (panel.contains(document.activeElement)) focus(origin);
+    origin?.removeAttribute("aria-expanded");
+    origin = null;
+    panel.querySelectorAll("article").forEach((article) => {
+      article.hidden = true;
     });
-    const locations = [
-      .../** @type {NodeListOf<HTMLElement>} */ (article.querySelectorAll("[data-location-chart]")),
-    ];
-    locations.forEach((element) => {
-      element.hidden = element.dataset.locationChart === chart;
-    });
-    const nav = /** @type {HTMLElement | null} */ (article.querySelector("[data-node-locations]"));
-    if (nav) nav.hidden = locations.every((element) => element.hidden);
-    const heading = article.querySelector("[data-location-heading]");
-    if (heading) heading.textContent = section ? "在其他图中定位" : "在图中定位";
-    dialog.setAttribute("aria-labelledby", article.querySelector("h2")?.id ?? "");
-    if (!dialog.open) dialog.showModal();
-    dialog.scrollTop = 0;
-    focus(article);
-  };
-  const clearLocation = () => {
-    document
-      .querySelectorAll("[data-located]")
-      .forEach((element) => element.removeAttribute("data-located"));
-  };
-  /** @param {string} id */
-  const locate = (id) => {
-    clearLocation();
-    const node = document.getElementById(id);
-    if (!node?.matches("svg [data-entity]")) return;
-    node.setAttribute("data-located", "");
-    node.scrollIntoView({ block: "center", inline: "center" });
-    focus(node.querySelector("a"));
-  };
-
-  let startedOnBackdrop = false;
-  /** @param {MouseEvent} event */
-  const onBackdrop = (event) => {
-    if (event.target !== dialog) return false;
-    const rect = dialog.getBoundingClientRect();
-    return (
-      event.clientX < rect.left ||
-      event.clientX > rect.right ||
-      event.clientY < rect.top ||
-      event.clientY > rect.bottom
-    );
-  };
-  dialog.addEventListener("pointerdown", (event) => {
-    startedOnBackdrop = event.button === 0 && onBackdrop(event);
   });
-  dialog.addEventListener("pointercancel", () => {
-    startedOnBackdrop = false;
-  });
-  dialog.addEventListener("click", (event) => {
-    const dismiss = startedOnBackdrop && onBackdrop(event);
-    startedOnBackdrop = false;
-    if (dismiss) dialog.close();
-  });
-
-  document.addEventListener("click", (event) => {
+  viewport.addEventListener("scroll", positionDetails);
+  new ResizeObserver(positionDetails).observe(root);
+  root.addEventListener("click", (event) => {
     if (
       event.defaultPrevented ||
       event.button !== 0 ||
@@ -120,50 +64,48 @@
     )
       return;
     const target = event.target instanceof Element ? event.target : null;
-    const link = target?.closest("a[href]");
-    if (!link) {
-      if (target && !target.closest("dialog,button,input,select,textarea,summary,[data-entity]")) {
-        clearLocation();
-        const active = document.activeElement;
-        if (active instanceof SVGElement && active.matches(".node-link")) active.blur();
-      }
+    if (!target) return;
+    if (target.closest("[data-close-details]")) {
+      panel.hidePopover();
       return;
     }
-    const detail = link.getAttribute("data-entity-detail");
-    const locationId = link.getAttribute("data-locate-node");
+    const link = target.closest("a");
+    const detail = link?.getAttribute("data-entity-detail");
+    const locationId = link?.getAttribute("data-locate-node");
     if (detail) {
       event.preventDefault();
-      if (current?.id === detail) return;
+      if (root.dataset.nodeDetails !== "enabled") return;
+      const article = root.querySelector(`#${detail}`);
+      if (!(article instanceof HTMLElement)) return;
+      origin?.removeAttribute("aria-expanded");
       origin = link;
-      show(detail, link.getAttribute("data-chart"));
-    } else if (locationId && dialog.open) {
+      origin?.setAttribute("aria-expanded", "true");
+      panel.querySelectorAll("article").forEach((item) => {
+        item.hidden = item !== article;
+      });
+      panel.setAttribute("aria-labelledby", `detail-title-${detail.slice("details-".length)}`);
+      panel.showPopover();
+      panel.scrollTop = 0;
+      positionDetails();
+      focus(panel.querySelector("[data-close-details]"));
+    } else if (locationId) {
       event.preventDefault();
-      pendingLocation = locationId;
-      dialog.close();
+      const node = root.querySelector(`#${locationId}`);
+      if (!(node instanceof SVGElement) && !(node instanceof HTMLElement)) return;
+      panel.hidePopover();
+      clearLocation();
+      node.setAttribute("data-located", "");
+      node.scrollIntoView({ block: "nearest", inline: "nearest" });
+      focus(node.querySelector("a"));
+    } else if (!target.closest("[data-details], [data-entity]")) {
+      clearLocation();
+      const active = document.activeElement;
+      if (
+        (active instanceof SVGElement || active instanceof HTMLElement) &&
+        active.matches(".node-link") &&
+        root.contains(active)
+      )
+        active.blur();
     }
   });
-  dialog.addEventListener("close", () => {
-    startedOnBackdrop = false;
-    restore();
-    if (pendingLocation) {
-      const id = pendingLocation;
-      pendingLocation = null;
-      if (location.hash !== `#${id}`) history.pushState(null, "", `#${id}`);
-      locate(id);
-    } else {
-      focus(origin);
-    }
-    origin = null;
-  });
-  document.documentElement.classList.add("interactive");
-  const showHash = () => {
-    const id = location.hash.slice(1);
-    locate(id);
-    if (/^details-[a-z][a-z0-9-]*$/.test(id)) {
-      origin = document.activeElement;
-      show(id, null);
-    }
-  };
-  window.addEventListener("hashchange", showHash);
-  showHash();
 })();

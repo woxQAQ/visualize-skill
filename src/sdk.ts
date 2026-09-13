@@ -2,7 +2,6 @@ import type {
   ArchitectureChart,
   ArchitectureNode,
   ArchitectureOptions,
-  Block,
   Diagram,
   Entity,
   EntityInput,
@@ -10,7 +9,8 @@ import type {
   ArchitecturePartition,
   Position,
   Role,
-  SemanticDocument,
+  RelationVariant,
+  SemanticDiagram,
   SequenceChart,
   SequenceOptions,
   Size,
@@ -19,8 +19,8 @@ import type {
   SwimlaneOptions,
   Tag,
 } from "./model.ts";
+import { relationVariants } from "./model.ts";
 import { array, fail, fields, freeze, identifier, string } from "./diagnostics.ts";
-import { parseMarkdown } from "./markdown.ts";
 
 const diagrams = new WeakSet<object>();
 function diagram<T extends Diagram>(value: T): T {
@@ -36,7 +36,7 @@ function shortText(input: unknown, path: string, limit: number): string {
       "INVALID_SHORT_TEXT",
       path,
       `此字段需要单行短文本，最多 ${limit} 个字符。`,
-      "填写名称或简短摘要；正文解释应放在报告中，不要塞入节点属性。",
+      "填写名称或简短摘要；解释应放在对话中，不要塞入节点属性。",
     );
   }
   return value;
@@ -178,15 +178,28 @@ function architecturePartitions(values: unknown, path: string): ArchitecturePart
   });
 }
 
+function relationVariant(value: unknown, path: string): RelationVariant {
+  if (value === undefined) return "default";
+  if (!relationVariants.some((variant) => variant === value))
+    fail(
+      "INVALID_RELATION_VARIANT",
+      path,
+      "关系样式必须使用预设名称。",
+      `可用样式：${relationVariants.join(", ")}。`,
+    );
+  return value as RelationVariant;
+}
+
 function edges(values: unknown, path: string) {
   return array(values, path, { empty: true }).map((value, i) => {
     const p = `${path}[${i}]`;
-    fields(value, ["id", "from", "to", "label"], p);
+    fields(value, ["id", "from", "to", "label", "variant"], p);
     return {
       id: identifier(value.id, `${p}.id`),
       from: ref(value.from, `${p}.from`),
       to: ref(value.to, `${p}.to`),
       label: string(value.label, `${p}.label`),
+      variant: relationVariant(value.variant, `${p}.variant`),
     };
   });
 }
@@ -195,7 +208,7 @@ function steps(values: unknown, path: string, depth = 0): Step[] {
   if (depth > 3) fail("SEQUENCE_DEPTH", path, "条件分支超过三层。", "将深层条件拆成独立时序图。");
   return array(values, path).map((value, i) => {
     const p = `${path}[${i}]`;
-    fields(value, ["id", "kind", "branches", "from", "to", "label", "replyTo"], p);
+    fields(value, ["id", "kind", "branches", "from", "to", "label", "replyTo", "variant"], p);
     if (value.kind === "alternative") {
       fields(value, ["id", "kind", "branches"], p);
       const branches = array(value.branches, `${p}.branches`);
@@ -218,12 +231,13 @@ function steps(values: unknown, path: string, depth = 0): Step[] {
         }),
       };
     }
-    fields(value, ["id", "from", "to", "label", "replyTo"], p);
+    fields(value, ["id", "from", "to", "label", "replyTo", "variant"], p);
     const message = {
       id: identifier(value.id, `${p}.id`),
       from: ref(value.from, `${p}.from`),
       to: ref(value.to, `${p}.to`),
       label: string(value.label, `${p}.label`),
+      variant: relationVariant(value.variant, `${p}.variant`),
     };
     return value.replyTo === undefined
       ? { ...message, kind: "call" }
@@ -291,98 +305,62 @@ export function swimlane(options: SwimlaneOptions): SwimlaneChart<Entity, Role> 
   });
 }
 
-export class Document {
-  #blocks: readonly Block<Diagram>[];
-  constructor(blocks: readonly Block<Diagram>[] = []) {
-    this.#blocks = freeze(blocks);
-    Object.freeze(this);
-  }
-  markdown(source: string) {
-    return new Document([
-      ...this.#blocks,
-      {
-        kind: "markdown",
-        content: parseMarkdown(source, `blocks[${this.#blocks.length}].markdown`),
-      },
-    ]);
-  }
-  diagram(value: Diagram) {
-    if (!diagrams.has(value))
+export function semanticDiagram(value: Diagram): SemanticDiagram {
+  if (!isDiagram(value))
+    fail(
+      "INVALID_DIAGRAM",
+      "diagram",
+      "需要 SDK 创建的图表。",
+      "使用 architecture、sequence 或 swimlane。",
+    );
+  const entities = new Map<string, Entity>();
+  const roles = new Map<string, Role>();
+  const collect = <T extends { readonly id: string }>(
+    registry: Map<string, T>,
+    item: T,
+    path: string,
+  ) => {
+    if (registry.has(item.id) && JSON.stringify(registry.get(item.id)) !== JSON.stringify(item))
       fail(
-        "INVALID_DIAGRAM",
-        "document.diagram",
-        "需要 SDK 创建的图表。",
-        "使用 architecture、sequence 或 swimlane。",
+        "IDENTITY_CONFLICT",
+        path,
+        `标识符 ${item.id} 存在不同定义。`,
+        "复用同一个定义，或为不同对象分配不同标识符。",
       );
-    return new Document([...this.#blocks, { kind: "diagram", content: structuredClone(value) }]);
-  }
-  toJSON(): SemanticDocument {
-    const entities = new Map<string, Entity>();
-    const roles = new Map<string, Role>();
-    const collect = <T extends { readonly id: string }>(
-      registry: Map<string, T>,
-      value: T,
-      path: string,
-    ) => {
-      if (
-        registry.has(value.id) &&
-        JSON.stringify(registry.get(value.id)) !== JSON.stringify(value)
-      )
-        fail(
-          "IDENTITY_CONFLICT",
-          path,
-          `标识符 ${value.id} 存在不同定义。`,
-          "复用同一个对象定义，或为不同对象分配不同标识符。",
-        );
-      registry.set(value.id, value);
-    };
-    const blocks: Block[] = this.#blocks.map((block, i) => {
-      if (block.kind === "markdown") return block;
-      const chart = block.content;
-      const appearance = (node: Participant<Entity, Role>) => {
-        collect(entities, node.entity, `blocks[${i}].${node.entity.id}`);
-        collect(roles, node.role, `blocks[${i}].${node.entity.id}.role`);
-        return { entity: node.entity.id, role: node.role.id, size: node.size };
-      };
-      if (chart.kind === "sequence") {
-        return {
-          kind: "diagram",
-          content: { ...chart, participants: chart.participants.map(appearance) },
-        };
-      }
-      if (chart.kind === "swimlane") {
-        return {
-          kind: "diagram",
-          content: {
-            ...chart,
-            nodes: chart.nodes.map((node) => ({
+    registry.set(item.id, item);
+  };
+  const appearance = (node: Participant<Entity, Role>) => {
+    collect(entities, node.entity, `diagram.${node.entity.id}`);
+    collect(roles, node.role, `diagram.${node.entity.id}.role`);
+    return { entity: node.entity.id, role: node.role.id, size: node.size };
+  };
+  const chart =
+    value.kind === "sequence"
+      ? { ...value, participants: value.participants.map(appearance) }
+      : value.kind === "swimlane"
+        ? {
+            ...value,
+            nodes: value.nodes.map((node) => ({
               ...appearance(node),
               position: node.position,
               lane: node.lane,
             })),
-          },
-        };
-      }
-      return {
-        kind: "diagram",
-        content: {
-          ...chart,
-          nodes: chart.nodes.map((node) => ({
-            ...appearance(node),
-            position: node.position,
-            ...(node.partition ? { partition: node.partition } : {}),
-          })),
-        },
-      };
-    });
-    return freeze({
-      version: 1,
-      entities: [...entities.values()].sort((a, b) => a.id.localeCompare(b.id, "en")),
-      roles: [...roles.values()].sort((a, b) => a.id.localeCompare(b.id, "en")),
-      blocks,
-    });
-  }
+          }
+        : {
+            ...value,
+            nodes: value.nodes.map((node) => ({
+              ...appearance(node),
+              position: node.position,
+              ...(node.partition ? { partition: node.partition } : {}),
+            })),
+          };
+  return freeze({
+    version: 1,
+    entities: [...entities.values()].sort((a, b) => a.id.localeCompare(b.id, "en")),
+    roles: [...roles.values()].sort((a, b) => a.id.localeCompare(b.id, "en")),
+    chart,
+  });
 }
 
-export const document = () => new Document();
-export const isDocument = (value: unknown): value is Document => value instanceof Document;
+export const isDiagram = (value: unknown): value is Diagram =>
+  typeof value === "object" && value !== null && diagrams.has(value);

@@ -1,8 +1,8 @@
 import { entity, role, architecture, swimlane } from "../../src/index.ts";
 
-// Package report geometry reproduces shared corridors and a crowded local connection.
+// Package diagram geometry reproduces shared corridors and a crowded local connection.
 
-// 职责（全文档最多 6 种）
+// 职责（每张图最多 6 种）
 const entry = role({ id: "entry", label: "调用入口" });
 const orchestration = role({ id: "orchestration", label: "回合编排" });
 const execution = role({ id: "execution", label: "效果执行" });

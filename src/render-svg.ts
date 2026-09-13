@@ -1,5 +1,5 @@
 import type { Chart, LayoutContext, NodeLayout, Scene, TextLayout } from "./model.ts";
-import { theme, measure } from "./design.ts";
+import { theme, measure, nodeDetailsEnabled, relationStyles } from "./design.ts";
 import { escape, number } from "./markup.ts";
 
 function textBlock(
@@ -26,13 +26,13 @@ function frames(scene: Scene) {
     <g data-fragment="${frame.id}">
       <rect x="${frame.x}" y="${frame.y}" width="${frame.width}" height="${frame.height}"
         fill="none" stroke="${theme.line}"/>
-      <path d="M ${frame.x} ${frame.y} h 48 v 17 l -9 9 h -39 z" fill="#f4f5f6" stroke="${theme.line}"/>
-      <text x="${frame.x + 10}" y="${frame.y + 18}" font-size="12" font-weight="600">alt</text>
+      <path d="M ${frame.x} ${frame.y} h 48 v 17 l -9 9 h -39 z" fill="${theme.subtle}" stroke="${theme.line}"/>
+      <text x="${frame.x + 10}" y="${frame.y + 18}" font-size="12" font-weight="600" fill="${theme.ink}">alt</text>
       ${frame.branches
         .map(
           (branch, index) => `
         ${index ? `<path d="M ${frame.x} ${branch.y - 8} H ${frame.x + frame.width}" stroke="${theme.line}" stroke-dasharray="5 4"/>` : ""}
-        <rect x="${frame.x + 10}" y="${branch.y - 1}" width="${branch.label.width + 8}" height="${branch.label.height + 2}" fill="white"/>
+        <rect x="${frame.x + 10}" y="${branch.y - 1}" width="${branch.label.width + 8}" height="${branch.label.height + 2}" fill="${theme.surface}"/>
         ${textBlock(branch.label, frame.x + 14, branch.y, { fill: theme.muted })}
       `,
         )
@@ -50,11 +50,11 @@ function nodeMarkup(node: NodeLayout, chart: Chart, ctx: LayoutContext) {
   const textHeight = node.title.height + (node.detail ? node.detail.height + 6 : 0);
   const textY = node.y + (node.height - textHeight) / 2;
   return `
-    <g id="entity-${chart.id}-${node.id}" data-entity="${node.id}" data-role="${node.role}" style="--node-color:${color.ink}">
-      <a class="node-link" text-anchor="middle" href="#details-${node.id}" data-entity-detail="details-${node.id}" data-chart="${chart.id}"
-        aria-label="${escape(entity.label)}，查看详情" tabindex="0">
+    <g id="entity-${chart.id}-${node.id}" data-entity="${node.id}" data-role="${node.role}">
+      <a class="node-link" text-anchor="middle" ${nodeDetailsEnabled ? `href="#details-${node.id}"` : 'role="group"'} data-entity-detail="details-${node.id}" data-chart="${chart.id}"
+        aria-label="${escape(entity.label)}${nodeDetailsEnabled ? "，查看详情" : ""}" tabindex="0">
         <rect class="node-surface" x="${node.x}" y="${node.y}" width="${node.width}" height="${node.height}"
-          rx="4" fill="${color.fill}" stroke="${color.ink}" stroke-width="2.5"/>
+          rx="10" fill="${color.fill}" stroke="${color.ink}" stroke-width="2.5"/>
         ${textBlock(node.title, textX, textY, { weight: 600 })}
         ${node.detail ? textBlock(node.detail, textX, textY + node.title.height + 6, { fill: theme.muted }) : ""}
       </a>
@@ -62,7 +62,7 @@ function nodeMarkup(node: NodeLayout, chart: Chart, ctx: LayoutContext) {
   `;
 }
 
-function arrowMarker(id: string, color: string, { returning = false, strokeWidth = 1.5 } = {}) {
+function arrowMarker(id: string, { returning = false, strokeWidth = 1.5 } = {}) {
   // Use canvas units so a highlighted edge does not enlarge its arrowhead.
   // Padding contains the open arrow's stroke; its solid stem bridges the final
   // dash gap regardless of path length or direction.
@@ -71,8 +71,8 @@ function arrowMarker(id: string, color: string, { returning = false, strokeWidth
       viewBox="-2 -2 16 16" refX="10.5" refY="${returning ? 6 : 5.25}" orient="auto">
       ${
         returning
-          ? `<path d="M 0 0 L 10.5 6 L 0 12 M 0 6 H 10.5" fill="none" stroke="${color}" stroke-width="${strokeWidth}" stroke-linejoin="round" stroke-dasharray="none"/>`
-          : `<path d="M 0 0 L 10.5 5.25 L 0 10.5 z" fill="${color}"/>`
+          ? `<path d="M 0 0 L 10.5 6 L 0 12 M 0 6 H 10.5" fill="none" stroke="context-stroke" stroke-width="${strokeWidth}" stroke-linejoin="round" stroke-dasharray="none"/>`
+          : `<path d="M 0 0 L 10.5 5.25 L 0 10.5 z" fill="context-stroke"/>`
       }
     </marker>
   `;
@@ -80,44 +80,53 @@ function arrowMarker(id: string, color: string, { returning = false, strokeWidth
 
 export function renderSvg(scene: Scene, chart: Chart, ctx: LayoutContext) {
   const callMarker = `arrow-${scene.id}`;
-  const returnMarker = `return-arrow-${scene.id}`;
-  const highlightCallMarker = `highlight-arrow-${scene.id}`;
-  const highlightReturnMarker = `highlight-return-arrow-${scene.id}`;
-  const highlight = theme.palette[0].ink;
+  const returnMarker = (width: number) => `return-arrow-${scene.id}-${width}`;
+  const returnWidths = new Set(
+    Object.values(relationStyles).flatMap((style) => [style.width, style.width + 1]),
+  );
   const neighbors = new Map(scene.nodes.map((node) => [node.id, new Set([node.id])]));
+  const incidentRelations = new Map(scene.nodes.map((node) => [node.id, new Set<string>()]));
   for (const edge of scene.edges) {
     neighbors.get(edge.from)!.add(edge.to);
     neighbors.get(edge.to)!.add(edge.from);
+    incidentRelations.get(edge.from)!.add(edge.id);
+    incidentRelations.get(edge.to)!.add(edge.id);
   }
+  const relationHover = (id: string) =>
+    `:is([data-relation-hit="${id}"],[data-relation-label="${id}"]):hover`;
   // The graph is known at render time. Scoped CSS keeps hover and keyboard
   // focus in sync. Membership comes only from direct edges, never from another
   // node's highlighted appearance, so emphasis cannot propagate down a chain.
   const nodeHighlights = scene.nodes
     .map((node) => {
-      const triggers = [...neighbors.get(node.id)!]
-        .map((id) => `[data-entity="${id}"] .node-link:is(:hover,:focus-visible)`)
-        .join(",");
+      const triggers = [
+        ...[...neighbors.get(node.id)!].map(
+          (id) => `[data-entity="${id}"] .node-link:is(:hover,:focus-visible)`,
+        ),
+        ...[...incidentRelations.get(node.id)!].map(relationHover),
+      ].join(",");
       return `
       #diagram-${scene.id} svg:has(${triggers}) [data-entity="${node.id}"] {
         opacity:1;
-        --node-elevation:drop-shadow(0 3px 4px color-mix(in srgb,var(--node-color) 22%,transparent));
+        --node-elevation:drop-shadow(0 3px 4px var(--node-shadow-color));
       }
     `;
     })
     .join("");
   const highlights = scene.edges
     .map((edge) => {
+      const width = relationStyles[edge.variant].width + 1;
       const endpoints = [...new Set([edge.from, edge.to])]
         .map((id) => `[data-entity="${id}"] .node-link:is(:hover,:focus-visible)`)
         .join(",");
-      const active = `#diagram-${scene.id} svg:has(${endpoints})`;
+      const active = `#diagram-${scene.id} svg:has(${endpoints},${relationHover(edge.id)})`;
       return `
       ${active} [data-relation="${edge.id}"] {
-        opacity:1;stroke:${highlight};stroke-width:2.5;
-        marker-end:url(#${edge.dashed ? highlightReturnMarker : highlightCallMarker});
+        opacity:1;stroke-width:${width};
+        marker-end:url(#${edge.returning ? returnMarker(width) : callMarker});
       }
       ${active} [data-relation-label="${edge.id}"] { opacity:1; }
-      ${active} [data-relation-label="${edge.id}"] text { fill:${highlight};font-weight:600; }
+      ${active} [data-relation-label="${edge.id}"] text { font-weight:600; }
     `;
     })
     .join("");
@@ -126,7 +135,7 @@ export function renderSvg(scene: Scene, chart: Chart, ctx: LayoutContext) {
       (partition) => `
     <g data-partition="${partition.id}" role="group" aria-label="${escape(partition.title.lines.join(""))}，逻辑分区">
       <rect x="${partition.x}" y="${partition.y}" width="${partition.width}" height="${partition.height}" rx="4"
-        fill="#fafbfc" stroke="${theme.line}" stroke-dasharray="6 4"/>
+        fill="${theme.subtle}" stroke="${theme.line}" stroke-dasharray="6 4"/>
       ${textBlock(partition.title, partition.x + 24, partition.y + 12, { fill: theme.muted, weight: 600 })}
     </g>
   `,
@@ -136,8 +145,8 @@ export function renderSvg(scene: Scene, chart: Chart, ctx: LayoutContext) {
     .map(
       (lane) => `
     <g data-lane="${lane.id}" role="group" aria-label="${escape(lane.title.lines.join(""))}，泳道">
-      <rect x="${lane.x}" y="${lane.y}" width="${lane.width}" height="${lane.height}" fill="white" stroke="${theme.line}"/>
-      <rect x="${lane.x}" y="${lane.y}" width="${lane.headerWidth}" height="${lane.height}" fill="#f4f5f6" stroke="${theme.line}"/>
+      <rect x="${lane.x}" y="${lane.y}" width="${lane.width}" height="${lane.height}" fill="${theme.surface}" stroke="${theme.line}"/>
+      <rect x="${lane.x}" y="${lane.y}" width="${lane.headerWidth}" height="${lane.height}" fill="${theme.subtle}" stroke="${theme.line}"/>
       ${textBlock(lane.title, lane.x + 16, lane.y + (lane.height - lane.title.height) / 2, { weight: 600 })}
     </g>
   `,
@@ -155,25 +164,28 @@ export function renderSvg(scene: Scene, chart: Chart, ctx: LayoutContext) {
       (bar) => `
     <rect data-activation="${bar.callId}" data-participant="${bar.entity}"
       x="${bar.x}" y="${bar.y}" width="${bar.width}" height="${bar.height}"
-      fill="white" stroke="${theme.ink}" stroke-width="1.2"/>
+      fill="${theme.surface}" stroke="${theme.ink}" stroke-width="1.2"/>
   `,
     )
     .join("");
   const edges = scene.edges
-    .map(
-      (edge) => `
-    <path data-relation="${edge.id}" d="${edge.path}" fill="none" stroke="${theme.line}" stroke-width="1.5"
-      ${edge.dashed ? 'stroke-dasharray="5 4"' : ""} marker-end="url(#${edge.dashed ? returnMarker : callMarker})"/>
-  `,
-    )
+    .map((edge) => {
+      const style = relationStyles[edge.variant];
+      return `
+    <path data-relation="${edge.id}" data-variant="${edge.variant}" d="${edge.path}" fill="none" stroke="${style.ink}" stroke-width="${style.width}"
+      stroke-dasharray="${edge.returning ? "5 4" : style.dash}" marker-end="url(#${edge.returning ? returnMarker(style.width) : callMarker})"/>
+    <path data-relation-hit="${edge.id}" d="${edge.path}" fill="none" stroke="transparent" stroke-width="12"
+      vector-effect="non-scaling-stroke" pointer-events="stroke" aria-hidden="true"/>
+  `;
+    })
     .join("");
   const labels = scene.edges
     .map(
       (edge) => `
     <g data-relation-label="${edge.id}">
       <rect x="${number(edge.labelX - 3)}" y="${number(edge.labelY - 2)}" width="${number(edge.label.width + 6)}"
-        height="${edge.label.height + 4}" fill="white"/>
-      ${textBlock(edge.label, edge.labelX, edge.labelY)}
+        height="${edge.label.height + 4}" fill="${theme.surface}"/>
+      ${textBlock(edge.label, edge.labelX, edge.labelY, { fill: relationStyles[edge.variant].ink, weight: relationStyles[edge.variant].weight })}
     </g>
   `,
     )
@@ -184,16 +196,14 @@ export function renderSvg(scene: Scene, chart: Chart, ctx: LayoutContext) {
       viewBox="0 0 ${scene.width} ${scene.height}" role="group"
       aria-labelledby="svg-title-${scene.id} svg-desc-${scene.id}" style="font-family:${theme.font};color:${theme.ink}">
       <title id="svg-title-${scene.id}">${escape(chart.title)}</title>
-      <desc id="svg-desc-${scene.id}">悬停或键盘聚焦节点时强调当前节点、直接相邻节点和相连关系，弱化其余节点与关系，点击节点或按 Enter 查看详细内容。${scene.kind === "sequence" ? "实线表示同步调用，虚线表示返回，生命线上的矩形表示执行区间。" : scene.kind === "swimlane" ? "横向泳道表示负责的人或系统，节点表示流程活动，箭头和标签表示流转方向与条件。" : "虚线框表示逻辑分区，箭头表示依赖，关系文字直接标注在线旁。"}</desc>
+      <desc id="svg-desc-${scene.id}">悬停或键盘聚焦节点时强调当前节点、直接相邻节点和相连关系，弱化其余节点与关系。悬停关系线或关系文字时，仅强调当前关系及其起点和终点。${nodeDetailsEnabled ? "点击节点或按 Enter 查看详细内容。" : ""}${scene.kind === "sequence" ? "实心箭头表示同步调用，开口箭头与短虚线表示返回，生命线上的矩形表示执行区间。关系样式可以改变调用的线型。" : scene.kind === "swimlane" ? "横向泳道表示负责的人或系统，节点表示流程活动，箭头和标签表示流转方向与条件。" : "虚线框表示逻辑分区，箭头表示依赖，关系文字直接标注在线旁。"}</desc>
       <style>@media screen {
-        #diagram-${scene.id} svg:has(.node-link:is(:hover,:focus-visible)) :is([data-entity],[data-relation],[data-relation-label]) { opacity:0.45; }
+        #diagram-${scene.id} svg:has(.node-link:is(:hover,:focus-visible),[data-relation-hit]:hover,[data-relation-label]:hover) :is([data-entity],[data-relation],[data-relation-label]) { opacity:0.45; }
         ${nodeHighlights}${highlights}
       }</style>
       <defs>
-        ${arrowMarker(callMarker, theme.line)}
-        ${arrowMarker(returnMarker, theme.line, { returning: true })}
-        ${arrowMarker(highlightCallMarker, highlight)}
-        ${arrowMarker(highlightReturnMarker, highlight, { returning: true, strokeWidth: 2.5 })}
+        ${arrowMarker(callMarker)}
+        ${[...returnWidths].map((width) => arrowMarker(returnMarker(width), { returning: true, strokeWidth: width })).join("")}
       </defs>
       ${partitions}${lanes}${lifelines}${frames(scene)}${activations}${edges}
       ${scene.nodes.map((node) => nodeMarkup(node, chart, ctx)).join("")}

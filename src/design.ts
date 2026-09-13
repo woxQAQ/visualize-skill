@@ -1,24 +1,32 @@
-import type { LayoutContext, SemanticDocument, TextLayout } from "./model.ts";
+import type { LayoutContext, RelationVariant, SemanticDiagram, TextLayout } from "./model.ts";
 import { freeze, fail } from "./diagnostics.ts";
 
 export const theme = freeze({
-  ink: "#252b30",
-  muted: "#5b646c",
-  line: "#707983",
-  border: "#c6ccd0",
+  ink: "var(--foreground)",
+  muted: "var(--muted-foreground)",
+  line: "var(--muted-foreground)",
+  border: "var(--border)",
+  surface: "var(--background)",
+  subtle: "color-mix(in srgb, var(--foreground) 4%, var(--background))",
   font: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
   fontSize: 14,
   lineHeight: 22,
   maxWidth: 1280,
   maxHeight: 2600,
-  palette: [
-    { ink: "#285c88", fill: "#edf4fa" },
-    { ink: "#855018", fill: "#fbf2e5" },
-    { ink: "#246757", fill: "#edf6f2" },
-    { ink: "#824568", fill: "#f8eff4" },
-    { ink: "#62509b", fill: "#f2eff8" },
-    { ink: "#555e68", fill: "#f0f2f4" },
-  ],
+  palette: Array.from({ length: 6 }, (_, index) => ({
+    ink: `var(--viz-series-${index + 1})`,
+    fill: `color-mix(in srgb, var(--viz-series-${index + 1}) 10%, var(--background))`,
+  })),
+});
+
+export const relationStyles: Readonly<
+  Record<RelationVariant, { ink: string; width: number; dash: string; weight: number }>
+> = freeze({
+  default: { ink: "var(--viz-series-1)", width: 1.5, dash: "none", weight: 400 },
+  emphasis: { ink: "var(--viz-series-5)", width: 2.5, dash: "none", weight: 600 },
+  security: { ink: "var(--viz-series-2)", width: 1.5, dash: "none", weight: 400 },
+  dashed: { ink: "var(--viz-series-1)", width: 1.5, dash: "5 4", weight: 400 },
+  external: { ink: "var(--viz-series-3)", width: 1.5, dash: "8 3 2 3", weight: 400 },
 });
 
 const segmenter = new Intl.Segmenter("en", { granularity: "grapheme" });
@@ -98,9 +106,11 @@ export function wrap(
   };
 }
 
-export function context(doc: SemanticDocument): LayoutContext {
+export function context(doc: SemanticDiagram): LayoutContext {
   return {
     entities: new Map(doc.entities.map((entity) => [entity.id, entity])),
     colors: new Map(doc.roles.map((role, index) => [role.id, theme.palette[index]])),
   };
 }
+// Retain node details for later use while keeping the current diagrams focused on relationships.
+export const nodeDetailsEnabled = false;
