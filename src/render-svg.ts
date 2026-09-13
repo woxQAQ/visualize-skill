@@ -54,7 +54,7 @@ function nodeMarkup(node: NodeLayout, chart: Chart, ctx: LayoutContext) {
       <a class="node-link" text-anchor="middle" ${nodeDetailsEnabled ? `href="#details-${node.id}"` : 'role="group"'} data-entity-detail="details-${node.id}" data-chart="${chart.id}"
         aria-label="${escape(entity.label)}${nodeDetailsEnabled ? "，查看详情" : ""}" tabindex="0">
         <rect class="node-surface" x="${node.x}" y="${node.y}" width="${node.width}" height="${node.height}"
-          rx="4" fill="${color.fill}" stroke="${color.ink}" stroke-width="2.5"/>
+          rx="10" fill="${color.fill}" stroke="${color.ink}" stroke-width="2.5"/>
         ${textBlock(node.title, textX, textY, { weight: 600 })}
         ${node.detail ? textBlock(node.detail, textX, textY + node.title.height + 6, { fill: theme.muted }) : ""}
       </a>
