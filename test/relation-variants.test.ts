@@ -23,11 +23,11 @@ const nodes = [caller, service].map((entity, index) => ({
 }));
 const variants = ["default", "emphasis", "security", "dashed", "external"] as const;
 const presets = {
-  default: { color: 1, width: 1.5, dash: "none", weight: 400 },
-  emphasis: { color: 5, width: 2.5, dash: "none", weight: 600 },
-  security: { color: 2, width: 1.5, dash: "none", weight: 400 },
-  dashed: { color: 1, width: 1.5, dash: "5 4", weight: 400 },
-  external: { color: 3, width: 1.5, dash: "8 3 2 3", weight: 400 },
+  default: { color: "var(--viz-series-1)", width: 1.5, dash: "none", weight: 400 },
+  emphasis: { color: "var(--viz-series-5)", width: 2.5, dash: "none", weight: 600 },
+  security: { color: "var(--red)", width: 1.5, dash: "none", weight: 400 },
+  dashed: { color: "var(--viz-series-1)", width: 1.5, dash: "5 4", weight: 400 },
+  external: { color: "var(--viz-series-3)", width: 1.5, dash: "8 3 2 3", weight: 400 },
 };
 
 function chart(kind: "architecture" | "sequence" | "swimlane", variant?: RelationVariant) {
@@ -76,15 +76,12 @@ test("relation presets survive normalization and layout in all diagram types", (
       const preset = presets[variant];
       for (const edge of scene.edges) {
         const markup = path(html, edge.id);
-        assert.equal(attr(markup, "stroke"), `var(--viz-series-${preset.color})`);
+        assert.equal(attr(markup, "stroke"), preset.color);
         assert.equal(attr(markup, "stroke-width"), String(preset.width));
         assert.equal(attr(markup, "stroke-dasharray"), edge.returning ? "5 4" : preset.dash);
         const label = html.match(new RegExp(`<g data-relation-label="${edge.id}">[^]*?</g>`))![0];
         assert.equal(attr(label, "font-weight"), String(preset.weight));
-        assert.equal(
-          label.match(/<text[^>]*fill="([^"]+)"/)![1],
-          `var(--viz-series-${preset.color})`,
-        );
+        assert.equal(label.match(/<text[^>]*fill="([^"]+)"/)![1], preset.color);
         const highlight = html.match(
           new RegExp(`\\[data-relation="${edge.id}"\\] \\{([^}]+)\\}`),
         )![1];

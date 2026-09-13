@@ -5,6 +5,7 @@ import type {
   Position,
   Rect,
   Relation,
+  RelationSide,
   TextLayout,
 } from "../model.ts";
 import { fail } from "../diagnostics.ts";
@@ -68,10 +69,10 @@ function compact(points: readonly Point[]): Point[] {
   return result;
 }
 
-function ports(box: Rect, obstacles: Rect[]): { side: string; point: Point; lead: Point }[] {
+function ports(box: Rect, obstacles: Rect[]): { side: RelationSide; point: Point; lead: Point }[] {
   const x = box.x + box.width / 2;
   const y = box.y + box.height / 2;
-  const sides: { side: string; point: Point; direction: Point }[] = [
+  const sides: { side: RelationSide; point: Point; direction: Point }[] = [
     { side: "right", point: [box.x + box.width, y], direction: [1, 0] },
     { side: "bottom", point: [x, box.y + box.height], direction: [0, 1] },
     { side: "left", point: [box.x, y], direction: [-1, 0] },
@@ -381,8 +382,14 @@ export function routeRelations(
     const choices: RouteChoice[] = [];
     const seen = new Set<string>();
 
-    for (const start of ports(from, obstacles)) {
-      for (const end of ports(to, obstacles)) {
+    const starts = ports(from, obstacles).filter(
+      (port) => relation.fromSide === undefined || port.side === relation.fromSide,
+    );
+    const ends = ports(to, obstacles).filter(
+      (port) => relation.toSide === undefined || port.side === relation.toSide,
+    );
+    for (const start of starts) {
+      for (const end of ends) {
         if (from.id === to.id && start.side === end.side) continue;
         for (const core of candidates(start.lead, end.lead, columns, rows)) {
           if (core.some((point) => point[0] < 8 || point[1] < 8)) continue;
@@ -426,10 +433,14 @@ export function routeRelations(
     pools.set(relation.id, choices);
   }
 
-  // Route short local connections first, with stable IDs breaking ties.
+  // Allocate constrained relations first so automatic routes do not consume
+  // their limited choices, then prefer short connections and stable IDs.
   // Preserve declaration order in the returned scene, not in route allocation.
+  const fixedSides = (relation: Relation) =>
+    Number(!!relation.fromSide) + Number(!!relation.toSide);
   const ordered = [...chart.relations].sort(
     (a, b) =>
+      fixedSides(b) - fixedSides(a) ||
       (pools.get(a.id)![0]?.cost ?? Infinity) - (pools.get(b.id)![0]?.cost ?? Infinity) ||
       (a.id < b.id ? -1 : a.id > b.id ? 1 : 0),
   );
@@ -437,11 +448,15 @@ export function routeRelations(
   for (const relation of ordered) {
     const selected = select(relation, pools.get(relation.id)!, [...result.values()]);
     if (!selected) {
+      const constraints = [
+        ...(relation.fromSide ? [`fromSide=${relation.fromSide}`] : []),
+        ...(relation.toSide ? [`toSide=${relation.toSide}`] : []),
+      ];
       fail(
         "RELATION_LAYOUT",
         `diagram.${chart.id}.relations.${relation.id}`,
-        `无法在 ${relation.from} 与 ${relation.to} 之间放置清晰的连线和标签。`,
-        "调整节点 position，增加关系沿线的留白，或缩短关系标签。",
+        `无法在 ${relation.from} 与 ${relation.to} 之间放置清晰的连线和标签${constraints.length ? `（${constraints.join(", ")}）` : ""}。`,
+        `${constraints.length ? "调整连接边 fromSide、toSide，或" : ""}调整节点 position，增加关系沿线的留白，或缩短关系标签。`,
       );
     }
     result.set(relation.id, selected);

@@ -42,6 +42,8 @@ export interface ArchitecturePartition {
 }
 export const relationVariants = ["default", "emphasis", "security", "dashed", "external"] as const;
 export type RelationVariant = (typeof relationVariants)[number];
+export const relationSides = ["top", "right", "bottom", "left"] as const;
+export type RelationSide = (typeof relationSides)[number];
 
 export interface Relation {
   readonly id: string;
@@ -49,16 +51,18 @@ export interface Relation {
   readonly to: string;
   readonly label: string;
   readonly variant: RelationVariant;
+  readonly fromSide?: RelationSide;
+  readonly toSide?: RelationSide;
 }
 export type RelationInput = Omit<Relation, "from" | "to" | "variant"> & {
   readonly from: EntityRef;
   readonly to: EntityRef;
   readonly variant?: RelationVariant;
 };
-export interface Call extends Relation {
+export interface Call extends Omit<Relation, "fromSide" | "toSide"> {
   readonly kind: "call";
 }
-export interface Return extends Relation {
+export interface Return extends Omit<Relation, "fromSide" | "toSide"> {
   readonly kind: "return";
   readonly replyTo: string;
 }
@@ -69,7 +73,7 @@ export interface Alternative {
 }
 export type Step = Call | Return | Alternative;
 export type StepInput =
-  | (RelationInput & { readonly replyTo?: string })
+  | (Omit<RelationInput, "fromSide" | "toSide"> & { readonly replyTo?: string })
   | {
       readonly id: string;
       readonly kind: "alternative";
@@ -177,6 +181,8 @@ export interface EdgeLayout {
   from: string;
   to: string;
   variant: RelationVariant;
+  fromSide?: RelationSide;
+  toSide?: RelationSide;
   points: Point[];
   path: string;
   label: TextLayout;

@@ -24,7 +24,7 @@ export const relationStyles: Readonly<
 > = freeze({
   default: { ink: "var(--viz-series-1)", width: 1.5, dash: "none", weight: 400 },
   emphasis: { ink: "var(--viz-series-5)", width: 2.5, dash: "none", weight: 600 },
-  security: { ink: "var(--viz-series-2)", width: 1.5, dash: "none", weight: 400 },
+  security: { ink: "var(--red)", width: 1.5, dash: "none", weight: 400 },
   dashed: { ink: "var(--viz-series-1)", width: 1.5, dash: "5 4", weight: 400 },
   external: { ink: "var(--viz-series-3)", width: 1.5, dash: "8 3 2 3", weight: 400 },
 });

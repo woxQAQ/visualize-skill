@@ -14,6 +14,7 @@ export type {
   Relation,
   RelationInput,
   RelationVariant,
+  RelationSide,
   Diagram,
   Chart,
   SemanticDiagram,

@@ -10,6 +10,7 @@ import type {
   Position,
   Role,
   RelationVariant,
+  RelationSide,
   SemanticDiagram,
   SequenceChart,
   SequenceOptions,
@@ -19,7 +20,7 @@ import type {
   SwimlaneOptions,
   Tag,
 } from "./model.ts";
-import { relationVariants } from "./model.ts";
+import { relationSides, relationVariants } from "./model.ts";
 import { array, fail, fields, freeze, identifier, string } from "./diagnostics.ts";
 
 const diagrams = new WeakSet<object>();
@@ -190,17 +191,41 @@ function relationVariant(value: unknown, path: string): RelationVariant {
   return value as RelationVariant;
 }
 
+function relationSide(value: unknown, path: string): RelationSide {
+  const side = relationSides.find((side) => side === value);
+  if (side === undefined)
+    fail(
+      "INVALID_RELATION_SIDE",
+      path,
+      "连接边必须是 top、right、bottom 或 left。",
+      "声明起点或终点的矩形边；省略字段时由算法选择。",
+    );
+  return side;
+}
+
 function edges(values: unknown, path: string) {
   return array(values, path, { empty: true }).map((value, i) => {
     const p = `${path}[${i}]`;
-    fields(value, ["id", "from", "to", "label", "variant"], p);
-    return {
+    fields(value, ["id", "from", "to", "label", "variant", "fromSide", "toSide"], p);
+    const relation = {
       id: identifier(value.id, `${p}.id`),
       from: ref(value.from, `${p}.from`),
       to: ref(value.to, `${p}.to`),
       label: string(value.label, `${p}.label`),
       variant: relationVariant(value.variant, `${p}.variant`),
+      ...(value.fromSide === undefined
+        ? {}
+        : { fromSide: relationSide(value.fromSide, `${p}.fromSide`) }),
+      ...(value.toSide === undefined ? {} : { toSide: relationSide(value.toSide, `${p}.toSide`) }),
     };
+    if (relation.from === relation.to && relation.fromSide && relation.fromSide === relation.toSide)
+      fail(
+        "RELATION_SIDE_CONFLICT",
+        `${p}.toSide`,
+        "自循环的起点和终点不能使用同一条连接边。",
+        "为 fromSide 和 toSide 选择不同的边，或省略其中一个字段。",
+      );
+    return relation;
   });
 }
 

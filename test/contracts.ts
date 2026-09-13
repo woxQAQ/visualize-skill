@@ -1,6 +1,13 @@
 // Compile-only checks: invalid declarations must fail before rendering.
 import { architecture, render, entity, role, sequence, swimlane } from "../src/index.ts";
-import type { RelationInput, RelationVariant, SemanticDiagram, Step } from "../src/index.ts";
+import type {
+  RelationInput,
+  RelationSide,
+  RelationVariant,
+  SemanticDiagram,
+  Step,
+  StepInput,
+} from "../src/index.ts";
 
 const item = entity({ id: "item", label: "对象", tags: [{ id: "public", label: "公开" }] });
 const worker = role({ id: "worker", label: "处理者" });
@@ -27,6 +34,25 @@ const invalidStyle: RelationInput = {
   stroke: "red",
 };
 void invalidStyle;
+
+const side: RelationSide = "right";
+const directedRelation: RelationInput = { ...styledRelation, fromSide: side, toSide: "left" };
+void directedRelation;
+const invalidSide: RelationInput = {
+  ...styledRelation,
+  // @ts-expect-error Omit a side to use automatic routing; auto is not a side name.
+  fromSide: "auto",
+};
+void invalidSide;
+const invalidMessage: StepInput = {
+  id: "message",
+  from: item,
+  to: item,
+  label: "调用",
+  // @ts-expect-error Sequence messages connect lifelines and execution bars, not node sides.
+  toSide: "top",
+};
+void invalidMessage;
 
 architecture({
   id: "valid",
