@@ -7,10 +7,10 @@ import type {
   Relation,
   RelationSide,
   TextLayout,
-} from "../model.ts";
+} from "./model.ts";
 import { fail } from "../diagnostics.ts";
 import { measure, wrap } from "../design.ts";
-import { path } from "./common.ts";
+import { path } from "./layout.ts";
 
 export function overlaps(a: Rect, b: Rect, gap = 0) {
   return (

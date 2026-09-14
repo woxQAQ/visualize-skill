@@ -1,4 +1,5 @@
-import type { Chart, LayoutContext, NodeLayout, Scene, TextLayout } from "./model.ts";
+import type { Chart, Scene } from "./model.ts";
+import type { LayoutContext, NodeLayout, TextLayout } from "./shared/model.ts";
 import { theme, measure, nodeDetailsEnabled, relationStyles, messageStyles } from "./design.ts";
 import { escape, number } from "./markup.ts";
 

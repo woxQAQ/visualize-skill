@@ -1,4 +1,5 @@
-import type { LayoutContext, NodeLayout, Participant, Point, Scene } from "../model.ts";
+import type { LayoutContext, NodeLayout, Participant, Point } from "./model.ts";
+import type { Scene } from "../model.ts";
 import { theme, wrap } from "../design.ts";
 import { fail } from "../diagnostics.ts";
 

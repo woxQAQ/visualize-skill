@@ -1,7 +1,21 @@
+/**
+ * Structured failure from declaration parsing, semantic validation or layout; use the code and
+ * path to identify what needs correction.
+ */
 export interface Diagnostic {
+  /**
+   * Machine-readable error category, such as UNKNOWN_ENDPOINT; use it instead of matching message
+   * text.
+   */
   code: string;
+  /**
+   * Diagnostic location describing the offending input or computed value; not a filesystem path or
+   * a guaranteed JSON Pointer.
+   */
   path: string;
+  /** Human-readable explanation of the failure; currently emitted in Chinese. */
   message: string;
+  /** Concrete correction suggested by the validator or layout engine. */
   hint: string;
 }
 export type AddDiagnostic = (code: string, path: string, message: string, hint: string) => void;

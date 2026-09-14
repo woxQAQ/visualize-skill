@@ -15,18 +15,15 @@ export type {
   RelationInput,
   RelationVariant,
   RelationSide,
-  Diagram,
-  Chart,
-  SemanticDiagram,
-  Scene,
-} from "./model.ts";
+} from "./shared/model.ts";
+export type { Diagram, Chart, SemanticDiagram, Scene } from "./model.ts";
 export type {
   ArchitectureOptions,
   ArchitectureChart,
   ArchitectureNode,
   ArchitecturePartition,
   ArchitectureScene,
-} from "./model.ts";
+} from "./architecture/index.ts";
 export type {
   SequenceOptions,
   SequenceChart,
@@ -37,6 +34,12 @@ export type {
   Message,
   MessageInput,
   MessageVariant,
-} from "./model.ts";
+} from "./sequence/index.ts";
 export type { Diagnostic } from "./diagnostics.ts";
-export type { Lane, SwimlaneNode, SwimlaneOptions, SwimlaneChart, SwimlaneScene } from "./model.ts";
+export type {
+  Lane,
+  SwimlaneNode,
+  SwimlaneOptions,
+  SwimlaneChart,
+  SwimlaneScene,
+} from "./swimlane/index.ts";

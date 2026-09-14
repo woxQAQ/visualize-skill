@@ -1,20 +1,19 @@
 import type {
   Activation,
-  LayoutContext,
-  Point,
   SequenceChart,
   SequenceEdgeLayout,
   SequenceScene,
   SequencePartitionLayout,
   Message,
-} from "../model.ts";
+} from "./index.ts";
+import type { LayoutContext, Point } from "../shared/model.ts";
 
 interface Execution {
   call: Message;
   activation: Activation;
 }
 import { wrap } from "../design.ts";
-import { nodeBox, finish, path } from "./common.ts";
+import { nodeBox, finish, path } from "../shared/layout.ts";
 import { fail } from "../diagnostics.ts";
 
 export function layoutSequence(chart: SequenceChart, ctx: LayoutContext): SequenceScene {

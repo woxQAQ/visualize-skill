@@ -1,8 +1,8 @@
 import type { Diagram, SemanticDiagram } from "./model.ts";
 import { context, nodeDetailsEnabled } from "./design.ts";
-import { layoutArchitecture } from "./layout/architecture.ts";
-import { layoutSequence } from "./layout/sequence.ts";
-import { layoutSwimlane } from "./layout/swimlane.ts";
+import { layoutArchitecture } from "./architecture/layout.ts";
+import { layoutSequence } from "./sequence/layout.ts";
+import { layoutSwimlane } from "./swimlane/layout.ts";
 import { validate } from "./validate.ts";
 import { semanticDiagram } from "./sdk.ts";
 import { escape } from "./markup.ts";

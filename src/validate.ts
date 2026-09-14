@@ -2,7 +2,7 @@ import type { Diagnostic, AddDiagnostic } from "./diagnostics.ts";
 import type { SemanticDiagram } from "./model.ts";
 import { DiagnosticError } from "./diagnostics.ts";
 import { theme } from "./design.ts";
-import { validateSequence } from "./validate-sequence.ts";
+import { validateSequence } from "./sequence/validate.ts";
 
 export function validate(doc: SemanticDiagram): SemanticDiagram {
   const diagnostics: Diagnostic[] = [];

@@ -1,13 +1,9 @@
-import type {
-  ArchitectureChart,
-  ArchitectureScene,
-  LayoutContext,
-  ArchitecturePartitionLayout,
-} from "../model.ts";
+import type { ArchitectureChart, ArchitectureScene, ArchitecturePartitionLayout } from "./index.ts";
+import type { LayoutContext } from "../shared/model.ts";
 import { fail } from "../diagnostics.ts";
 import { wrap } from "../design.ts";
-import { nodeBox, finish } from "./common.ts";
-import { routeRelations, overlaps, borderObstacles } from "./routing.ts";
+import { nodeBox, finish } from "../shared/layout.ts";
+import { routeRelations, overlaps, borderObstacles } from "../shared/routing.ts";
 
 const margin = 32;
 const padding = 24;

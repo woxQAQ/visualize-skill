@@ -2,28 +2,31 @@ import type {
   ArchitectureChart,
   ArchitectureNode,
   ArchitectureOptions,
-  Diagram,
+  ArchitecturePartition,
+} from "./architecture/index.ts";
+import type { Diagram, SemanticDiagram } from "./model.ts";
+import type {
   Entity,
   EntityInput,
   Participant,
-  ArchitecturePartition,
   Position,
   Role,
   RelationVariant,
   RelationSide,
-  SemanticDiagram,
+  Size,
+  Tag,
+} from "./shared/model.ts";
+import type {
   SequenceChart,
   SequenceParticipant,
   SequencePartition,
   SequenceOptions,
-  Size,
   Message,
   MessageVariant,
-  SwimlaneChart,
-  SwimlaneOptions,
-  Tag,
-} from "./model.ts";
-import { messageVariants, relationSides, relationVariants } from "./model.ts";
+} from "./sequence/index.ts";
+import type { SwimlaneChart, SwimlaneOptions } from "./swimlane/index.ts";
+import { messageVariants } from "./sequence/index.ts";
+import { relationSides, relationVariants } from "./shared/model.ts";
 import { array, fail, fields, freeze, identifier, string } from "./diagnostics.ts";
 
 const diagrams = new WeakSet<object>();

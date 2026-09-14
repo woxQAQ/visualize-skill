@@ -1,10 +1,6 @@
-import type {
-  LayoutContext,
-  MessageVariant,
-  RelationVariant,
-  SemanticDiagram,
-  TextLayout,
-} from "./model.ts";
+import type { LayoutContext, RelationVariant, TextLayout } from "./shared/model.ts";
+import type { MessageVariant } from "./sequence/index.ts";
+import type { SemanticDiagram } from "./model.ts";
 import { freeze, fail } from "./diagnostics.ts";
 
 export const theme = freeze({

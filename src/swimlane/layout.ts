@@ -1,8 +1,9 @@
-import type { LaneLayout, LayoutContext, SwimlaneChart, SwimlaneScene } from "../model.ts";
+import type { LaneLayout, SwimlaneChart, SwimlaneScene } from "./index.ts";
+import type { LayoutContext } from "../shared/model.ts";
 import { wrap } from "../design.ts";
 import { fail } from "../diagnostics.ts";
-import { finish, nodeBox } from "./common.ts";
-import { overlaps, routeRelations, borderObstacles } from "./routing.ts";
+import { finish, nodeBox } from "../shared/layout.ts";
+import { overlaps, routeRelations, borderObstacles } from "../shared/routing.ts";
 
 const margin = 32;
 const padding = 24;
