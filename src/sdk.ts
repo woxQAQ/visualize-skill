@@ -13,6 +13,8 @@ import type {
   RelationSide,
   SemanticDiagram,
   SequenceChart,
+  SequenceParticipant,
+  SequencePartition,
   SequenceOptions,
   Size,
   Message,
@@ -145,11 +147,16 @@ function normalizeAppearance(
   };
 }
 
-function participants(nodes: unknown, path: string): Participant<Entity, Role>[] {
+function participants(nodes: unknown, path: string): SequenceParticipant<Entity, Role>[] {
   return array(nodes, path).map((node, i) => {
     const p = `${path}[${i}]`;
-    fields(node, ["entity", "role", "size"], p);
-    return normalizeAppearance(node, p);
+    fields(node, ["entity", "role", "size", "partition"], p);
+    return {
+      ...normalizeAppearance(node, p),
+      ...(node.partition === undefined
+        ? {}
+        : { partition: identifier(node.partition, `${p}.partition`) }),
+    };
   });
 }
 
@@ -176,6 +183,17 @@ function architecturePartitions(values: unknown, path: string): ArchitecturePart
       label: shortText(value.label, `${p}.label`, 48),
       position: position(value.position, `${p}.position`),
       size: size(value.size, `${p}.size`),
+    };
+  });
+}
+
+function sequencePartitions(values: unknown, path: string): SequencePartition[] {
+  return array(values, path, { empty: true }).map((value, i) => {
+    const p = `${path}[${i}]`;
+    fields(value, ["id", "label"], p);
+    return {
+      id: identifier(value.id, `${p}.id`),
+      label: shortText(value.label, `${p}.label`, 48),
     };
   });
 }
@@ -288,12 +306,13 @@ export function architecture(options: ArchitectureOptions): ArchitectureChart<En
 }
 
 export function sequence(options: SequenceOptions): SequenceChart<Entity, Role> {
-  fields(options, ["id", "title", "participants", "messages"], "sequence");
+  fields(options, ["id", "title", "participants", "partitions", "messages"], "sequence");
   return diagram({
     kind: "sequence",
     id: identifier(options.id, "sequence.id"),
     title: string(options.title, "sequence.title"),
     participants: participants(options.participants, "sequence.participants"),
+    partitions: sequencePartitions(options.partitions ?? [], "sequence.partitions"),
     messages: messages(options.messages, "sequence.messages"),
   });
 }
@@ -366,7 +385,13 @@ export function semanticDiagram(value: Diagram): SemanticDiagram {
   };
   const chart =
     value.kind === "sequence"
-      ? { ...value, participants: value.participants.map(appearance) }
+      ? {
+          ...value,
+          participants: value.participants.map((node) => ({
+            ...appearance(node),
+            ...(node.partition === undefined ? {} : { partition: node.partition }),
+          })),
+        }
       : value.kind === "swimlane"
         ? {
             ...value,

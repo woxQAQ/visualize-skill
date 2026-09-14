@@ -5,6 +5,7 @@ import type {
   SequenceChart,
   SequenceEdgeLayout,
   SequenceScene,
+  SequencePartitionLayout,
   Message,
 } from "../model.ts";
 
@@ -17,18 +18,60 @@ import { nodeBox, finish, path } from "./common.ts";
 import { fail } from "../diagnostics.ts";
 
 export function layoutSequence(chart: SequenceChart, ctx: LayoutContext): SequenceScene {
-  let nextX = 32;
+  let nextX = chart.partitions.length ? 46 : 32;
   const nodes = chart.participants.map((node) => {
     const box = nodeBox(node, ctx, nextX, 24, { description: false });
     nextX += box.width + 40;
     return box;
   });
+  const partitions: SequencePartitionLayout[] = chart.partitions.map((partition) => {
+    const members = nodes.filter(
+      (_, index) => chart.participants[index].partition === partition.id,
+    );
+    const first = members[0],
+      last = members.at(-1)!;
+    const width = last.x + last.width - first.x + 28;
+    return {
+      id: partition.id,
+      x: first.x - 14,
+      y: 24,
+      width,
+      height: 0,
+      title: wrap(
+        partition.label,
+        width - 48,
+        `diagram.${chart.id}.partitions.${partition.id}.label`,
+        2,
+      ),
+    };
+  });
+  const nodeY = partitions.length
+    ? 60 + Math.max(...partitions.map((partition) => partition.title.height))
+    : 24;
+  for (const node of nodes) node.y = nodeY;
+  const borders = partitions
+    .flatMap((partition) => [partition.x, partition.x + partition.width])
+    .sort((a, b) => a - b);
+
+  function labelSpace(x: number, width: number): { x: number; width: number } {
+    const end = x + width;
+    const spaces: { x: number; width: number }[] = [];
+    let start = x;
+    for (const border of borders) {
+      if (border + 5 <= start || border - 5 >= end) continue;
+      if (border - 5 > start) spaces.push({ x: start, width: border - 5 - start });
+      start = Math.max(start, border + 5);
+    }
+    if (start < end) spaces.push({ x: start, width: end - start });
+    return spaces.sort((a, b) => b.width - a.width)[0] ?? { x, width: 0 };
+  }
+
   const headerHeight = Math.max(...nodes.map((node) => node.height));
   const centers = new Map(nodes.map((node) => [node.id, node.x + node.width / 2]));
   const width = nodes.at(-1)!.x + nodes.at(-1)!.width + 52;
   const edges: SequenceEdgeLayout[] = [],
     activations: Activation[] = [];
-  let y = 24 + headerHeight + 32;
+  let y = nodeY + headerHeight + 32;
   let count = 0;
 
   function activate(call: Message, stack: Execution[], startY: number): Execution {
@@ -69,7 +112,13 @@ export function layoutSequence(chart: SequenceChart, ctx: LayoutContext): Sequen
     const labelWidth = self
       ? Math.min(120, selfLabelWidth)
       : Math.abs(centers.get(message.to)! - centers.get(message.from)!) - 42;
-    if (labelWidth < 12) {
+    const labelPosition = labelSpace(
+      self
+        ? centers.get(message.from)! + (selfLabelOnLeft ? -labelWidth - 24 : 40)
+        : Math.min(centers.get(message.from)!, centers.get(message.to)!) + 12,
+      labelWidth,
+    );
+    if (labelPosition.width < 12) {
       fail(
         "SEQUENCE_LABEL_SPACE",
         `diagram.${chart.id}.${message.id}`,
@@ -79,7 +128,7 @@ export function layoutSequence(chart: SequenceChart, ctx: LayoutContext): Sequen
     }
     const label = wrap(
       `${++count}. ${message.label}`,
-      labelWidth,
+      labelPosition.width,
       `diagram.${chart.id}.${message.id}.label`,
       6,
       12,
@@ -117,9 +166,9 @@ export function layoutSequence(chart: SequenceChart, ctx: LayoutContext): Sequen
       points,
       path: path(points),
       label,
-      labelX: self
-        ? centers.get(message.from)! + (selfLabelOnLeft ? -label.width - 24 : 40)
-        : Math.min(fromX, toX) + 12,
+      labelX: selfLabelOnLeft
+        ? labelPosition.x + labelPosition.width - label.width
+        : labelPosition.x,
       labelY: y,
       arrivalY,
       lineY,
@@ -134,12 +183,14 @@ export function layoutSequence(chart: SequenceChart, ctx: LayoutContext): Sequen
       ...edge.points.map((point) => point[0] + 24),
     ]),
   );
+  for (const partition of partitions) partition.height = y + 12 - partition.y;
   return finish({
     kind: "sequence",
     id: chart.id,
     width: finalWidth,
-    height: y + 12,
+    height: y + (partitions.length ? 36 : 12),
     nodes,
+    partitions,
     edges,
     activations: activations.filter((bar) => bar.height > 0),
     lifelines: nodes.map((node) => ({ x: centers.get(node.id)!, y1: node.y + node.height, y2: y })),

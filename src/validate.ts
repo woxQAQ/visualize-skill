@@ -66,7 +66,8 @@ export function validate(doc: SemanticDiagram): SemanticDiagram {
           "先将该对象加入 nodes 或 participants。",
         );
   };
-  if (chart.kind === "architecture") {
+  if (chart.kind !== "swimlane") {
+    const members = chart.kind === "sequence" ? chart.participants : chart.nodes;
     const partitionIds = new Set<string>();
     for (const partition of chart.partitions) {
       if (partitionIds.has(partition.id))
@@ -77,7 +78,7 @@ export function validate(doc: SemanticDiagram): SemanticDiagram {
           "为本图每个逻辑分区使用唯一标识。",
         );
       partitionIds.add(partition.id);
-      if (!chart.nodes.some((node) => node.partition === partition.id))
+      if (!members.some((node) => node.partition === partition.id))
         add(
           "EMPTY_PARTITION",
           `${path}.partitions.${partition.id}`,
@@ -85,7 +86,7 @@ export function validate(doc: SemanticDiagram): SemanticDiagram {
           "为节点声明 partition，或移除空分区。",
         );
     }
-    for (const node of chart.nodes) {
+    for (const node of members) {
       if (node.partition && !partitionIds.has(node.partition))
         add(
           "UNKNOWN_PARTITION",
@@ -125,6 +126,18 @@ export function validate(doc: SemanticDiagram): SemanticDiagram {
     }
   }
   if (chart.kind === "sequence") {
+    for (const partition of chart.partitions) {
+      const indices = chart.participants.flatMap((node, index) =>
+        node.partition === partition.id ? [index] : [],
+      );
+      if (indices.length && indices.at(-1)! - indices[0] + 1 !== indices.length)
+        add(
+          "NONCONTIGUOUS_PARTITION",
+          `${path}.partitions.${partition.id}`,
+          "同一时序分区的参与者必须连续排列。",
+          "调整 participants 的声明顺序，把同一分区的成员放在一起。",
+        );
+    }
     validateSequence(chart, path, add, edge);
   } else {
     const values = chart.relations;

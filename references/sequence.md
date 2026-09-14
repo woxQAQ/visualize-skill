@@ -2,11 +2,36 @@
 
 [公共接口](api.md) · [架构图](architecture.md)
 
-`sequence(options)` 接收必填的 `id`、`title`、`participants` 和 `messages`。参与者和消息数组均不能为空。消息按数组顺序从上到下排列。
+`sequence(options)` 接收必填的 `id`、`title`、`participants` 和 `messages`。参与者和消息数组均不能为空。消息按数组顺序从上到下排列。可选的 `partitions` 声明参与者分区，省略时为 `[]`。
 
 ## 参与者
 
-每个参与者包含 `entity`、`role`、`size`，不接受 `position`。`entity`、`role` 接收完整对象定义，不能只传标识字符串。`size` 为 `{ width, height }`，值须为正有限数字，一单位对应一个 CSS 像素。参与者按数组顺序横向排列，相邻边界间隔为 40；图内标题框显示名称，不显示对象摘要。
+`SequenceParticipant` 表示时序参与者，包含 `entity`、`role`、`size` 和可选的 `partition`，不接受 `position`。`entity`、`role` 接收完整对象定义，不能只传标识字符串。`size` 为 `{ width, height }`，值须为正有限数字，一单位对应一个 CSS 像素。参与者按数组顺序横向排列，相邻边界间隔为 40；图内标题框显示名称，不显示对象摘要。
+
+## 参与者分区
+
+`SequencePartition` 表示时序参与者分区，将相邻的参与者按系统、职责或部署归属组织在一起。`sequence()` 用 `partitions` 声明分区，参与者用 `partition` 指定归属；分区范围由参与者排列和消息布局自动计算。
+
+每个分区只声明 `id` 和 `label`，名称是最多 48 个字符的单行短文本。分区不进入实体表，没有角色、标签或详情，也不能作为消息端点。每个分区至少包含一个参与者；参与者可以不属于任何分区，当前不支持嵌套。
+
+```ts
+partitions: [
+  { id: "backend", label: "服务端" },
+],
+participants: [
+  { entity: client, role: caller, size: { width: 180, height: 64 } },
+  { entity: service, role: handler, partition: "backend", size: { width: 180, height: 64 } },
+  { entity: database, role: storage, partition: "backend", size: { width: 180, height: 64 } },
+],
+```
+
+分区成员在 `participants` 中必须连续排列，布局保留原有顺序。`partitions` 数组顺序不改变参与者位置。未知引用、重复标识、空分区或不连续成员分别产生 `UNKNOWN_PARTITION`、`DUPLICATE_PARTITION`、`EMPTY_PARTITION`、`NONCONTIGUOUS_PARTITION` 诊断。
+
+分区用浅色背景和虚线边框绘制，覆盖组内参与者标题及完整生命线。它不接受 `position` 或 `size`：宽度由成员的标题框与间距计算，高度随消息布局延伸。成员左右各留 14 像素，同组及跨组参与者之间仍保持 40 像素间距；相邻分区边框之间留 12 像素。
+
+分区标题最多两行，所有参与者标题框在分区标题下方对齐。标题放不下时应缩短名称或增加参与者宽度。消息线可以跨越边界；标签在边框分隔出的可用区间内换行，背景与边框至少相隔 2 像素。分区不改变消息顺序、同步调用栈或异步语义。
+
+完整示例见 [sequence-partitions.ts](../examples/sequence-partitions.ts)。
 
 ## 消息
 

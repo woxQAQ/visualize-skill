@@ -21,10 +21,13 @@ function entityDetails(semantic: SemanticDiagram) {
         (node) => node.entity === entity.id,
       )!;
       const partition =
-        chart.kind === "architecture"
+        chart.kind !== "swimlane"
           ? chart.partitions.find(
               (partition) =>
-                partition.id === chart.nodes.find((node) => node.entity === entity.id)?.partition,
+                partition.id ===
+                (chart.kind === "sequence" ? chart.participants : chart.nodes).find(
+                  (node) => node.entity === entity.id,
+                )?.partition,
             )
           : undefined;
       const lane =

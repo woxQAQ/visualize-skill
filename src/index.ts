@@ -30,6 +30,9 @@ export type {
 export type {
   SequenceOptions,
   SequenceChart,
+  SequenceParticipant,
+  SequencePartition,
+  SequencePartitionLayout,
   SequenceScene,
   Message,
   MessageInput,

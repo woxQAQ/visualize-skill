@@ -40,6 +40,13 @@ export interface ArchitecturePartition {
   readonly position: Position;
   readonly size: Size;
 }
+export interface SequenceParticipant<E = string, R = string> extends Participant<E, R> {
+  readonly partition?: string;
+}
+export interface SequencePartition {
+  readonly id: string;
+  readonly label: string;
+}
 export const relationVariants = [
   "default",
   "emphasis",
@@ -96,7 +103,8 @@ export interface SequenceChart<E = string, R = string> {
   readonly kind: "sequence";
   readonly id: string;
   readonly title: string;
-  readonly participants: readonly Participant<E, R>[];
+  readonly participants: readonly SequenceParticipant<E, R>[];
+  readonly partitions: readonly SequencePartition[];
   readonly messages: readonly Message[];
 }
 export interface Lane {
@@ -133,7 +141,8 @@ export interface ArchitectureOptions {
 export interface SequenceOptions {
   readonly id: string;
   readonly title: string;
-  readonly participants: readonly Participant<EntityInput, Role>[];
+  readonly participants: readonly SequenceParticipant<EntityInput, Role>[];
+  readonly partitions?: readonly SequencePartition[];
   readonly messages: readonly MessageInput[];
 }
 export interface SwimlaneOptions {
@@ -218,9 +227,14 @@ export interface SequenceScene {
   width: number;
   height: number;
   nodes: NodeLayout[];
+  partitions: SequencePartitionLayout[];
   edges: SequenceEdgeLayout[];
   activations: Activation[];
   lifelines: { x: number; y1: number; y2: number }[];
+}
+export interface SequencePartitionLayout extends Rect {
+  id: string;
+  title: TextLayout;
 }
 export interface LaneLayout extends Rect {
   id: string;
