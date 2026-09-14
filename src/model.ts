@@ -40,7 +40,14 @@ export interface ArchitecturePartition {
   readonly position: Position;
   readonly size: Size;
 }
-export const relationVariants = ["default", "emphasis", "security", "dashed", "external"] as const;
+export const relationVariants = [
+  "default",
+  "emphasis",
+  "security",
+  "dashed",
+  "external",
+  "return",
+] as const;
 export type RelationVariant = (typeof relationVariants)[number];
 export const relationSides = ["top", "right", "bottom", "left"] as const;
 export type RelationSide = (typeof relationSides)[number];

@@ -8,11 +8,12 @@ const connections: { variant: RelationVariant; from: string; to: string; label: 
   { variant: "security", from: "应用", to: "授权服务", label: "安全相关连接" },
   { variant: "dashed", from: "处理器", to: "缓存", label: "虚线连接" },
   { variant: "external", from: "业务系统", to: "第三方服务", label: "外部连接" },
+  { variant: "return", from: "业务服务", to: "调用方", label: "返回结果" },
 ];
 
 export const variants = architecture({
   id: "relation-variants",
-  title: "关系样式：五种预设",
+  title: "关系样式：六种预设",
   nodes: connections.flatMap(({ variant, from, to }, index) => [
     {
       entity: entity({ id: `${variant}-from`, label: from }),

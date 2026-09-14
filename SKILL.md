@@ -13,11 +13,11 @@ description: 解释软件架构、项目如何运作或调用流程时，按问�
 
 先确定讲解需要回答哪些问题，再为每个适合用图解释的问题选择图型，读取对应参考和示例：
 
-| 要表达的内容             | 参考                                 | 示例                                        |
-| ------------------------ | ------------------------------------ | ------------------------------------------- |
-| 有哪些组件，如何分组和依赖？ | [架构图](references/architecture.md) | [architecture.ts](examples/architecture.ts) |
-| 谁先调用谁，何时返回，如何按条件分支？ | [时序图](references/sequence.md) | [sequence.ts](examples/sequence.ts) |
-| 每项活动由谁负责，如何交接或回退？ | [泳道图](references/swimlane.md) | [swimlane.ts](examples/swimlane.ts) |
+| 要表达的内容                           | 参考                                 | 示例                                        |
+| -------------------------------------- | ------------------------------------ | ------------------------------------------- |
+| 有哪些组件，如何分组和依赖？           | [架构图](references/architecture.md) | [architecture.ts](examples/architecture.ts) |
+| 谁先调用谁，何时返回，如何按条件分支？ | [时序图](references/sequence.md)     | [sequence.ts](examples/sequence.ts)         |
+| 每项活动由谁负责，如何交接或回退？     | [泳道图](references/swimlane.md)     | [swimlane.ts](examples/swimlane.ts)         |
 
 每张图围绕一个问题。讲解同时涉及系统组成和运行过程时，分别考虑架构图和时序图：前者说明职责与依赖，后者展开一次具体请求的调用与返回。新增图应补充已有图未表达的信息；图的数量由问题决定，不固定为一张，也不为凑数量重复画图。
 

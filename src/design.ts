@@ -20,13 +20,23 @@ export const theme = freeze({
 });
 
 export const relationStyles: Readonly<
-  Record<RelationVariant, { ink: string; width: number; dash: string; weight: number }>
+  Record<
+    RelationVariant,
+    { ink: string; width: number; dash: string; weight: number; arrow: "filled" | "open" }
+  >
 > = freeze({
-  default: { ink: "var(--viz-series-1)", width: 1.5, dash: "none", weight: 400 },
-  emphasis: { ink: "var(--viz-series-5)", width: 2.5, dash: "none", weight: 600 },
-  security: { ink: "var(--red)", width: 1.5, dash: "none", weight: 400 },
-  dashed: { ink: "var(--viz-series-1)", width: 1.5, dash: "5 4", weight: 400 },
-  external: { ink: "var(--viz-series-3)", width: 1.5, dash: "8 3 2 3", weight: 400 },
+  default: { ink: "var(--viz-series-1)", width: 1.5, dash: "none", weight: 400, arrow: "filled" },
+  emphasis: { ink: "var(--viz-series-5)", width: 2.5, dash: "none", weight: 600, arrow: "filled" },
+  security: { ink: "var(--red)", width: 1.5, dash: "none", weight: 400, arrow: "filled" },
+  dashed: { ink: "var(--viz-series-1)", width: 1.5, dash: "5 4", weight: 400, arrow: "filled" },
+  external: {
+    ink: "var(--viz-series-3)",
+    width: 1.5,
+    dash: "8 3 2 3",
+    weight: 400,
+    arrow: "filled",
+  },
+  return: { ink: theme.muted, width: 1.5, dash: "5 4", weight: 400, arrow: "open" },
 });
 
 const segmenter = new Intl.Segmenter("en", { granularity: "grapheme" });

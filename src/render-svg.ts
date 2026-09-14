@@ -1,4 +1,4 @@
-import type { Chart, LayoutContext, NodeLayout, Scene, TextLayout } from "./model.ts";
+import type { Chart, EdgeLayout, LayoutContext, NodeLayout, Scene, TextLayout } from "./model.ts";
 import { theme, measure, nodeDetailsEnabled, relationStyles } from "./design.ts";
 import { escape, number } from "./markup.ts";
 
@@ -81,6 +81,10 @@ function arrowMarker(id: string, { returning = false, strokeWidth = 1.5 } = {}) 
 export function renderSvg(scene: Scene, chart: Chart, ctx: LayoutContext) {
   const callMarker = `arrow-${scene.id}`;
   const returnMarker = (width: number) => `return-arrow-${scene.id}-${width}`;
+  const edgeMarker = (edge: EdgeLayout, width: number) =>
+    edge.returning || relationStyles[edge.variant].arrow === "open"
+      ? returnMarker(width)
+      : callMarker;
   const returnWidths = new Set(
     Object.values(relationStyles).flatMap((style) => [style.width, style.width + 1]),
   );
@@ -123,7 +127,7 @@ export function renderSvg(scene: Scene, chart: Chart, ctx: LayoutContext) {
       return `
       ${active} [data-relation="${edge.id}"] {
         opacity:1;stroke-width:${width};
-        marker-end:url(#${edge.returning ? returnMarker(width) : callMarker});
+        marker-end:url(#${edgeMarker(edge, width)});
       }
       ${active} [data-relation-label="${edge.id}"] { opacity:1; }
       ${active} [data-relation-label="${edge.id}"] text { font-weight:600; }
@@ -173,7 +177,7 @@ export function renderSvg(scene: Scene, chart: Chart, ctx: LayoutContext) {
       const style = relationStyles[edge.variant];
       return `
     <path data-relation="${edge.id}" data-variant="${edge.variant}" d="${edge.path}" fill="none" stroke="${style.ink}" stroke-width="${style.width}"
-      stroke-dasharray="${edge.returning ? "5 4" : style.dash}" marker-end="url(#${edge.returning ? returnMarker(style.width) : callMarker})"/>
+      stroke-dasharray="${edge.returning ? "5 4" : style.dash}" marker-end="url(#${edgeMarker(edge, style.width)})"/>
     <path data-relation-hit="${edge.id}" d="${edge.path}" fill="none" stroke="transparent" stroke-width="12"
       vector-effect="non-scaling-stroke" pointer-events="stroke" aria-hidden="true"/>
   `;

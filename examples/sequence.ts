@@ -23,7 +23,14 @@ export const generation = sequence({
   messages: [
     { id: "submit", from: sdk, to: coordinator, label: "生成图表", variant: "emphasis" },
     { id: "check", from: coordinator, to: validator, label: "检查语义" },
-    { id: "checked", from: validator, to: coordinator, label: "检查结果", replyTo: "check" },
+    {
+      id: "checked",
+      from: validator,
+      to: coordinator,
+      label: "检查结果",
+      replyTo: "check",
+      variant: "return",
+    },
     {
       id: "validation-result",
       kind: "alternative",
