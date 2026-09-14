@@ -66,29 +66,24 @@ export type RelationInput = Omit<Relation, "from" | "to" | "variant"> & {
   readonly to: EntityRef;
   readonly variant?: RelationVariant;
 };
-export interface Call extends Omit<Relation, "fromSide" | "toSide"> {
-  readonly kind: "call";
-}
-export interface Return extends Omit<Relation, "fromSide" | "toSide"> {
-  readonly kind: "return";
-  readonly replyTo: string;
-}
-export interface Alternative {
+export const messageVariants = ["default", "dashed", "emphasis", "return", "security"] as const;
+export type MessageVariant = (typeof messageVariants)[number];
+export interface Message {
   readonly id: string;
-  readonly kind: "alternative";
-  readonly branches: readonly { readonly label: string; readonly messages: readonly Message[] }[];
+  readonly from: string;
+  readonly to: string;
+  readonly label: string;
+  readonly variant: MessageVariant;
+  readonly replyTo?: string;
 }
-export type Message = Call | Return | Alternative;
-export type MessageInput =
-  | (Omit<RelationInput, "fromSide" | "toSide"> & { readonly replyTo?: string })
-  | {
-      readonly id: string;
-      readonly kind: "alternative";
-      readonly branches: readonly {
-        readonly label: string;
-        readonly messages: readonly MessageInput[];
-      }[];
-    };
+export interface MessageInput {
+  readonly id: string;
+  readonly from: EntityRef;
+  readonly to: EntityRef;
+  readonly label: string;
+  readonly variant?: MessageVariant;
+  readonly replyTo?: string;
+}
 export interface ArchitectureChart<E = string, R = string> {
   readonly kind: "architecture";
   readonly id: string;
@@ -183,21 +178,23 @@ export interface ArchitecturePartitionLayout extends Rect {
   title: TextLayout;
   headerHeight: number;
 }
-export interface EdgeLayout {
+export interface ConnectionLayout {
   id: string;
   from: string;
   to: string;
-  variant: RelationVariant;
-  fromSide?: RelationSide;
-  toSide?: RelationSide;
   points: Point[];
   path: string;
   label: TextLayout;
   labelX: number;
   labelY: number;
-  returning?: boolean;
 }
-export interface SequenceEdgeLayout extends EdgeLayout {
+export interface EdgeLayout extends ConnectionLayout {
+  variant: RelationVariant;
+  fromSide?: RelationSide;
+  toSide?: RelationSide;
+}
+export interface SequenceEdgeLayout extends ConnectionLayout {
+  variant: MessageVariant;
   arrivalY: number;
   lineY: number;
 }
@@ -205,11 +202,6 @@ export interface Activation extends Rect {
   id: string;
   callId: string;
   entity: string;
-}
-export interface Fragment extends Rect {
-  id: string;
-  operator: "alt";
-  branches: { y: number; label: TextLayout }[];
 }
 export interface ArchitectureScene {
   kind: "architecture";
@@ -227,7 +219,6 @@ export interface SequenceScene {
   height: number;
   nodes: NodeLayout[];
   edges: SequenceEdgeLayout[];
-  fragments: Fragment[];
   activations: Activation[];
   lifelines: { x: number; y1: number; y2: number }[];
 }

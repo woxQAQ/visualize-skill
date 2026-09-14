@@ -31,11 +31,9 @@ export type {
   SequenceOptions,
   SequenceChart,
   SequenceScene,
-  Call,
-  Return,
-  Alternative,
   Message,
   MessageInput,
+  MessageVariant,
 } from "./model.ts";
 export type { Diagnostic } from "./diagnostics.ts";
 export type { Lane, SwimlaneNode, SwimlaneOptions, SwimlaneChart, SwimlaneScene } from "./model.ts";

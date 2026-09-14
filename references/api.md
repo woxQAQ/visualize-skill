@@ -5,7 +5,7 @@
 | 图表                     | 参考                      | 示例                                           |
 | ------------------------ | ------------------------- | ---------------------------------------------- |
 | 组件、依赖和分区         | [架构图](architecture.md) | [architecture.ts](../examples/architecture.ts) |
-| 同步调用、返回和互斥分支 | [时序图](sequence.md)     | [sequence.ts](../examples/sequence.ts)         |
+| 同步调用、异步消息和响应 | [时序图](sequence.md)     | [sequence.ts](../examples/sequence.ts)         |
 | 活动、泳道、交接和回退   | [泳道图](swimlane.md)     | [swimlane.ts](../examples/swimlane.ts)         |
 
 ## 图表与输出
@@ -65,11 +65,11 @@ export default architecture({
 
 架构和泳道节点显示名称与可选摘要，时序参与者显示名称。`tags` 保留在对象数据中，当前图形不展示标签，也不提供节点详情入口。
 
-所有标识遵循 `^[a-z][a-z0-9-]*$`，例如 `order-api`。一张图内，同名对象、职责或标签必须有一致的定义；同一对象只能出现一次，可以连接多条关系。关系、消息和条件分支的标识在本图内唯一。参数对象只接受文档列出的字段。
+所有标识遵循 `^[a-z][a-z0-9-]*$`，例如 `order-api`。一张图内，同名对象、职责或标签必须有一致的定义；同一对象只能出现一次，可以连接多条关系。关系和消息的标识在本图内唯一。参数对象只接受文档列出的字段。
 
 ## 关系样式
 
-`variant` 意为关系的“样式预设”，适用于架构关系、泳道流转以及时序调用和返回。它是可选字段，省略时使用 `default`；SDK 创建的只读关系和 `compile()` 输出均保留明确的 `variant`。类型 `RelationVariant` 是以下六个名称的联合类型。不接受任意颜色或 CSS 样式。
+`variant` 意为关系的“样式预设”，适用于架构关系和泳道流转。它是可选字段，省略时使用 `default`；SDK 创建的只读关系和 `compile()` 输出均保留明确的 `variant`。类型 `RelationVariant` 是以下六个名称的联合类型。不接受任意颜色或 CSS 样式。
 
 | `variant`  | 用途                 | 颜色 token           | 线宽 | 线型                             |
 | ---------- | -------------------- | -------------------- | ---- | -------------------------------- |
@@ -88,7 +88,7 @@ export default architecture({
 relations: [{ id: "authorize", from: caller, to: service, label: "校验权限", variant: "security" }];
 ```
 
-时序消息仍由 `replyTo` 决定是否返回。调用的箭头和线型取自预设；返回始终使用开口箭头和短虚线，颜色、线宽和字重仍取自自身预设。`variant: "return"` 只改变外观，不能代替 `replyTo` 配对调用或结束执行区间。调用和返回分别声明 `variant`，不自动继承。`alternative` 条件片段不接受 `variant`。六种预设的完整对比见 `examples/relation-variants.ts`。
+时序消息使用独立的 `MessageVariant`，含义和渲染由消息自身的预设决定，见[时序消息](sequence.md#消息)。这里的六种关系预设对比见 `examples/relation-variants.ts`。
 
 ## 关系连接边
 
@@ -112,7 +112,7 @@ relations: [
 
 声明的连接边是必须满足的约束。布线在这些边之间继续选择转折、避障和标签位置；不会移动节点、忽略指定边或改变 `variant`。无法找到可用路线时返回 `RELATION_LAYOUT`，诊断包含指定的边，提示调整连接边、节点位置或留白。节点位置仍以 `position` 为准，起止边不规定中间路线从哪个方向绕行。
 
-自循环必须使用不同的起止边；两端显式声明同一边会返回 `RELATION_SIDE_CONFLICT`。非法边名返回 `INVALID_RELATION_SIDE`。时序调用、返回和条件片段不接受这两个字段，仍连接生命线与执行条。
+自循环必须使用不同的起止边；两端显式声明同一边会返回 `RELATION_SIDE_CONFLICT`。非法边名返回 `INVALID_RELATION_SIDE`。时序消息不接受这两个字段，仍连接生命线与执行条。
 
 SDK 的只读关系、语义数据和布局中的关系保留已声明的边；省略的边保持省略，实际连接点见 `scene.edges[].points`。完整示例见 `examples/relation-sides.ts`。
 
@@ -146,7 +146,7 @@ SDK 的只读关系、语义数据和布局中的关系保留已声明的边；�
 
 声明检查字段和类型，编译继续检查身份一致性、关系端点、调用生命周期及几何布局。错误抛出 `DiagnosticError`，其 `diagnostics` 含 `code`、`path`、`message`、`hint`。
 
-常见诊断包括 `INVALID_DIAGRAM`、`UNKNOWN_FIELD`、`IDENTITY_CONFLICT`、`UNKNOWN_ENDPOINT`、`NODE_CONTENT_FIT`、`PARTITION_CONTENT_FIT`、`LANE_CONTENT_FIT`、`NODE_OVERLAP`、`REGION_OVERLAP`、`RELATION_LAYOUT`。时序错误如 `UNFINISHED_CALL`、`RETURN_ORDER`、`BRANCH_EXECUTION_MISMATCH` 表示调用模型需要修正。具体修改方式以诊断为准。
+常见诊断包括 `INVALID_DIAGRAM`、`UNKNOWN_FIELD`、`IDENTITY_CONFLICT`、`UNKNOWN_ENDPOINT`、`NODE_CONTENT_FIT`、`PARTITION_CONTENT_FIT`、`LANE_CONTENT_FIT`、`NODE_OVERLAP`、`REGION_OVERLAP`、`RELATION_LAYOUT`。时序错误如 `INVALID_MESSAGE_VARIANT`、`MISSING_REPLY`、`UNEXPECTED_REPLY`、`UNFINISHED_CALL`、`RETURN_ORDER` 表示调用模型需要修正。具体修改方式以诊断为准。
 
 ```sh
 node "<skill>/src/cli.ts" diagram.ts --format page -o diagram.html

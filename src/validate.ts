@@ -1,5 +1,5 @@
 import type { Diagnostic, AddDiagnostic } from "./diagnostics.ts";
-import type { Relation, SemanticDiagram } from "./model.ts";
+import type { SemanticDiagram } from "./model.ts";
 import { DiagnosticError } from "./diagnostics.ts";
 import { theme } from "./design.ts";
 import { validateSequence } from "./validate-sequence.ts";
@@ -52,15 +52,10 @@ export function validate(doc: SemanticDiagram): SemanticDiagram {
       "按系统边界或流程阶段拆图，保持文字可读。",
     );
   const seen = new Set();
-  const edge = (value: Relation) => {
+  const edge = (value: { id: string; from: string; to: string }) => {
     const p = `${path}.${value.id}`;
     if (seen.has(value.id))
-      add(
-        "DUPLICATE_RELATION",
-        p,
-        "关系或消息标识重复。",
-        "为每条关系、消息和条件分支设置唯一标识。",
-      );
+      add("DUPLICATE_RELATION", p, "关系或消息标识重复。", "为每条关系或消息设置唯一标识。");
     seen.add(value.id);
     for (const key of ["from", "to"] as const)
       if (!ids.has(value[key]))

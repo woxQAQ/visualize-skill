@@ -1,4 +1,4 @@
-import type { Call, Diagram, SemanticDiagram, Message } from "./model.ts";
+import type { Diagram, SemanticDiagram } from "./model.ts";
 import { context, nodeDetailsEnabled } from "./design.ts";
 import { layoutArchitecture } from "./layout/architecture.ts";
 import { layoutSequence } from "./layout/sequence.ts";
@@ -15,14 +15,6 @@ function entityDetails(semantic: SemanticDiagram) {
   const entities = new Map(semantic.entities.map((entity) => [entity.id, entity]));
   const link = (id: string) =>
     `<a href="#entity-${chart.id}-${id}" data-locate-node="entity-${chart.id}-${id}">${escape(entities.get(id)!.label)}</a>`;
-  const calls = (messages: readonly Message[]): Call[] =>
-    messages.flatMap((message) =>
-      message.kind === "alternative"
-        ? message.branches.flatMap((branch) => calls(branch.messages))
-        : message.kind === "call"
-          ? [message]
-          : [],
-    );
   return semantic.entities
     .map((entity) => {
       const node = (chart.kind === "sequence" ? chart.participants : chart.nodes).find(
@@ -41,9 +33,11 @@ function entityDetails(semantic: SemanticDiagram) {
               (lane) => lane.id === chart.nodes.find((node) => node.entity === entity.id)?.lane,
             )
           : undefined;
-      const related = (chart.kind === "sequence" ? calls(chart.messages) : chart.relations).filter(
-        (relation) => relation.from === entity.id || relation.to === entity.id,
-      );
+      const related = (
+        chart.kind === "sequence"
+          ? chart.messages.filter((message) => message.variant !== "return")
+          : chart.relations
+      ).filter((relation) => relation.from === entity.id || relation.to === entity.id);
       const rows = related
         .map((relation) => {
           const outgoing = relation.from === entity.id;

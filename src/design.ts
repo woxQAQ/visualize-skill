@@ -1,4 +1,10 @@
-import type { LayoutContext, RelationVariant, SemanticDiagram, TextLayout } from "./model.ts";
+import type {
+  LayoutContext,
+  MessageVariant,
+  RelationVariant,
+  SemanticDiagram,
+  TextLayout,
+} from "./model.ts";
 import { freeze, fail } from "./diagnostics.ts";
 
 export const theme = freeze({
@@ -37,6 +43,19 @@ export const relationStyles: Readonly<
     arrow: "filled",
   },
   return: { ink: theme.muted, width: 1.5, dash: "5 4", weight: 400, arrow: "open" },
+});
+
+export const messageStyles: Readonly<
+  Record<
+    MessageVariant,
+    { ink: string; width: number; dash: string; weight: number; arrow: "filled" | "open" }
+  >
+> = freeze({
+  default: { ink: theme.ink, width: 1.5, dash: "none", weight: 400, arrow: "filled" },
+  dashed: { ink: theme.ink, width: 1.5, dash: "8 4", weight: 400, arrow: "open" },
+  emphasis: { ink: "var(--viz-series-5)", width: 2.5, dash: "none", weight: 600, arrow: "filled" },
+  return: { ink: theme.muted, width: 1.5, dash: "5 4", weight: 400, arrow: "open" },
+  security: { ink: "var(--red)", width: 1.5, dash: "none", weight: 400, arrow: "filled" },
 });
 
 const segmenter = new Intl.Segmenter("en", { granularity: "grapheme" });

@@ -1,7 +1,5 @@
 import type {
   Activation,
-  Call,
-  Fragment,
   LayoutContext,
   Point,
   SequenceChart,
@@ -11,7 +9,7 @@ import type {
 } from "../model.ts";
 
 interface Execution {
-  call: Call;
+  call: Message;
   activation: Activation;
 }
 import { wrap } from "../design.ts";
@@ -29,16 +27,14 @@ export function layoutSequence(chart: SequenceChart, ctx: LayoutContext): Sequen
   const centers = new Map(nodes.map((node) => [node.id, node.x + node.width / 2]));
   const width = nodes.at(-1)!.x + nodes.at(-1)!.width + 52;
   const edges: SequenceEdgeLayout[] = [],
-    fragments: Fragment[] = [],
     activations: Activation[] = [];
   let y = 24 + headerHeight + 32;
-  let count = 0,
-    segmentCount = 0;
+  let count = 0;
 
-  function activate(call: Call, stack: Execution[], startY: number): Execution {
+  function activate(call: Message, stack: Execution[], startY: number): Execution {
     const depth = stack.filter((frame) => frame.call.to === call.to).length;
     const activation: Activation = {
-      id: `${call.id}-segment-${++segmentCount}`,
+      id: `${call.id}-activation`,
       callId: call.id,
       entity: call.to,
       x: centers.get(call.to)! - 7 + depth * 7,
@@ -50,16 +46,6 @@ export function layoutSequence(chart: SequenceChart, ctx: LayoutContext): Sequen
     return { call, activation };
   }
 
-  function endSegments(stack: Execution[], endY: number): void {
-    for (const frame of stack) frame.activation.height = Math.max(0, endY - frame.activation.y);
-  }
-
-  function resume(calls: Call[], startY: number): Execution[] {
-    const stack: Execution[] = [];
-    for (const call of calls) stack.push(activate(call, stack, startY));
-    return stack;
-  }
-
   function anchor(entity: string, stack: Execution[], direction: number): number {
     const frame = stack.findLast((frame) => frame.call.to === entity);
     return frame
@@ -67,117 +53,80 @@ export function layoutSequence(chart: SequenceChart, ctx: LayoutContext): Sequen
       : centers.get(entity)!;
   }
 
-  function walk(messages: readonly Message[], stack: Execution[], depth = 0): Execution[] {
-    for (const message of messages) {
-      if (message.kind === "alternative") {
-        endSegments(stack, y);
-        const inherited = stack.map((frame) => frame.call);
-        const fragment: Fragment = {
-          id: message.id,
-          operator: "alt",
-          height: 0,
-          x: 12 + depth * 10,
-          y,
-          width: width - 24 - depth * 20,
-          branches: [],
-        };
-        fragments.push(fragment);
-        y += 32;
-        let exitCalls: Call[] = [];
-        for (const branch of message.branches) {
-          const label = wrap(
-            `[${branch.label}]`,
-            width - 80,
-            `diagram.${chart.id}.${message.id}.branch`,
-            3,
-            12,
-          );
-          fragment.branches.push({ y, label });
-          y += label.height + 18;
-          const branchStack = walk(branch.messages, resume(inherited, y), depth + 1);
-          endSegments(branchStack, y);
-          exitCalls = branchStack.map((frame) => frame.call);
-          y += 12;
-        }
-        fragment.height = y - fragment.y;
-        y += 24;
-        stack = resume(exitCalls, y);
-        continue;
-      }
-
-      const returning = message.kind === "return";
-      const self = message.from === message.to;
-      const direction = centers.get(message.to)! >= centers.get(message.from)! ? 1 : -1;
-      const participantIndex = nodes.findIndex((node) => node.id === message.from);
-      const selfLabelOnLeft = self && participantIndex === nodes.length - 1 && participantIndex > 0;
-      const selfLabelWidth = selfLabelOnLeft
-        ? centers.get(message.from)! - centers.get(nodes[participantIndex - 1].id)! - 48
-        : participantIndex < nodes.length - 1
-          ? centers.get(nodes[participantIndex + 1].id)! - centers.get(message.from)! - 64
-          : 120;
-      const labelWidth = self
-        ? Math.min(120, selfLabelWidth)
-        : Math.abs(centers.get(message.to)! - centers.get(message.from)!) - 42;
-      if (labelWidth < 12) {
-        fail(
-          "SEQUENCE_LABEL_SPACE",
-          `diagram.${chart.id}.${message.id}`,
-          "参与者之间没有足够空间放置消息标签。",
-          "增加相关参与者的 size.width。",
-        );
-      }
-      const label = wrap(
-        `${++count}. ${message.label}`,
-        labelWidth,
-        `diagram.${chart.id}.${message.id}.label`,
-        6,
-        12,
+  const stack: Execution[] = [];
+  const prior = new Map<string, Message>();
+  for (const message of chart.messages) {
+    const returning = message.variant === "return";
+    const self = message.from === message.to;
+    const direction = centers.get(message.to)! >= centers.get(message.from)! ? 1 : -1;
+    const participantIndex = nodes.findIndex((node) => node.id === message.from);
+    const selfLabelOnLeft = self && participantIndex === nodes.length - 1 && participantIndex > 0;
+    const selfLabelWidth = selfLabelOnLeft
+      ? centers.get(message.from)! - centers.get(nodes[participantIndex - 1].id)! - 48
+      : participantIndex < nodes.length - 1
+        ? centers.get(nodes[participantIndex + 1].id)! - centers.get(message.from)! - 64
+        : 120;
+    const labelWidth = self
+      ? Math.min(120, selfLabelWidth)
+      : Math.abs(centers.get(message.to)! - centers.get(message.from)!) - 42;
+    if (labelWidth < 12) {
+      fail(
+        "SEQUENCE_LABEL_SPACE",
+        `diagram.${chart.id}.${message.id}`,
+        "参与者之间没有足够空间放置消息标签。",
+        "增加相关参与者的 size.width。",
       );
-      const lineY = y + label.height + 8;
-      const arrivalY = lineY + (self ? 28 : 0);
-      const fromX = anchor(message.from, stack, self ? 1 : direction);
-      let toX;
-
-      if (returning) {
-        const completed = stack.pop()!;
-        completed.activation.height = lineY - completed.activation.y;
-        toX = anchor(message.to, stack, self ? 1 : -direction);
-      } else {
-        const frame = activate(message, stack, arrivalY);
-        stack.push(frame);
-        toX = frame.activation.x + (self || direction < 0 ? frame.activation.width : 0);
-      }
-
-      const points: Point[] = self
-        ? [
-            [fromX, lineY],
-            [Math.max(fromX, toX) + 42, lineY],
-            [Math.max(fromX, toX) + 42, arrivalY],
-            [toX, arrivalY],
-          ]
-        : [
-            [fromX, lineY],
-            [toX, lineY],
-          ];
-      edges.push({
-        ...message,
-        points,
-        path: path(points),
-        label,
-        labelX: self
-          ? centers.get(message.from)! + (selfLabelOnLeft ? -label.width - 24 : 40)
-          : Math.min(fromX, toX) + 12,
-        labelY: y,
-        arrivalY,
-        lineY,
-        returning,
-      });
-      y = arrivalY + 32;
     }
-    return stack;
-  }
+    const label = wrap(
+      `${++count}. ${message.label}`,
+      labelWidth,
+      `diagram.${chart.id}.${message.id}.label`,
+      6,
+      12,
+    );
+    const lineY = y + label.height + 8;
+    const arrivalY = lineY + (self ? 28 : 0);
+    const fromX = anchor(message.from, stack, self ? 1 : direction);
+    let toX;
 
-  walk(chart.messages, []);
+    if (returning && prior.get(message.replyTo!)!.variant !== "dashed") {
+      const completed = stack.pop()!;
+      completed.activation.height = lineY - completed.activation.y;
+      toX = anchor(message.to, stack, self ? 1 : -direction);
+    } else if (returning || message.variant === "dashed") {
+      toX = anchor(message.to, stack, self ? 1 : -direction);
+    } else {
+      const frame = activate(message, stack, arrivalY);
+      stack.push(frame);
+      toX = frame.activation.x + (self || direction < 0 ? frame.activation.width : 0);
+    }
+
+    const points: Point[] = self
+      ? [
+          [fromX, lineY],
+          [Math.max(fromX, toX) + 42, lineY],
+          [Math.max(fromX, toX) + 42, arrivalY],
+          [toX, arrivalY],
+        ]
+      : [
+          [fromX, lineY],
+          [toX, lineY],
+        ];
+    edges.push({
+      ...message,
+      points,
+      path: path(points),
+      label,
+      labelX: self
+        ? centers.get(message.from)! + (selfLabelOnLeft ? -label.width - 24 : 40)
+        : Math.min(fromX, toX) + 12,
+      labelY: y,
+      arrivalY,
+      lineY,
+    });
+    y = arrivalY + 32;
+    prior.set(message.id, message);
+  }
   const finalWidth = Math.max(
     width,
     ...edges.flatMap((edge) => [
@@ -185,7 +134,6 @@ export function layoutSequence(chart: SequenceChart, ctx: LayoutContext): Sequen
       ...edge.points.map((point) => point[0] + 24),
     ]),
   );
-  for (const frame of fragments) frame.width += finalWidth - width;
   return finish({
     kind: "sequence",
     id: chart.id,
@@ -193,7 +141,6 @@ export function layoutSequence(chart: SequenceChart, ctx: LayoutContext): Sequen
     height: y + 12,
     nodes,
     edges,
-    fragments,
     activations: activations.filter((bar) => bar.height > 0),
     lifelines: nodes.map((node) => ({ x: centers.get(node.id)!, y1: node.y + node.height, y2: y })),
   });

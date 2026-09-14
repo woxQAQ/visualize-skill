@@ -16,11 +16,12 @@ import type {
   SequenceOptions,
   Size,
   Message,
+  MessageVariant,
   SwimlaneChart,
   SwimlaneOptions,
   Tag,
 } from "./model.ts";
-import { relationSides, relationVariants } from "./model.ts";
+import { messageVariants, relationSides, relationVariants } from "./model.ts";
 import { array, fail, fields, freeze, identifier, string } from "./diagnostics.ts";
 
 const diagrams = new WeakSet<object>();
@@ -229,44 +230,48 @@ function edges(values: unknown, path: string) {
   });
 }
 
-function messages(values: unknown, path: string, depth = 0): Message[] {
-  if (depth > 3) fail("SEQUENCE_DEPTH", path, "条件分支超过三层。", "将深层条件拆成独立时序图。");
+function messageVariant(value: unknown, path: string): MessageVariant {
+  if (value === undefined) return "default";
+  const variant = messageVariants.find((variant) => variant === value);
+  if (variant === undefined)
+    fail(
+      "INVALID_MESSAGE_VARIANT",
+      path,
+      "消息必须使用时序图的语义预设。",
+      `可用预设：${messageVariants.join(", ")}。`,
+    );
+  return variant;
+}
+
+function messages(values: unknown, path: string): Message[] {
   return array(values, path).map((value, i) => {
     const p = `${path}[${i}]`;
-    fields(value, ["id", "kind", "branches", "from", "to", "label", "replyTo", "variant"], p);
-    if (value.kind === "alternative") {
-      fields(value, ["id", "kind", "branches"], p);
-      const branches = array(value.branches, `${p}.branches`);
-      if (branches.length < 2)
-        fail(
-          "INVALID_ALTERNATIVE",
-          p,
-          "条件分支至少需要两个分支。",
-          "声明条件成立和不成立时的消息。",
-        );
-      return {
-        id: identifier(value.id, `${p}.id`),
-        kind: "alternative",
-        branches: branches.map((branch, j) => {
-          fields(branch, ["label", "messages"], `${p}.branches[${j}]`);
-          return {
-            label: string(branch.label, `${p}.branches[${j}].label`),
-            messages: messages(branch.messages, `${p}.branches[${j}].messages`, depth + 1),
-          };
-        }),
-      };
-    }
     fields(value, ["id", "from", "to", "label", "replyTo", "variant"], p);
-    const message = {
+    const variant = messageVariant(value.variant, `${p}.variant`);
+    if (variant === "return" && value.replyTo === undefined)
+      fail(
+        "MISSING_REPLY",
+        `${p}.replyTo`,
+        "响应必须关联原消息。",
+        "用 replyTo 指定先前消息的标识。",
+      );
+    if (variant !== "return" && value.replyTo !== undefined)
+      fail(
+        "UNEXPECTED_REPLY",
+        `${p}.replyTo`,
+        "只有 return 消息可以声明 replyTo。",
+        '将响应的 variant 设为 "return"，或移除 replyTo。',
+      );
+    return {
       id: identifier(value.id, `${p}.id`),
       from: ref(value.from, `${p}.from`),
       to: ref(value.to, `${p}.to`),
       label: string(value.label, `${p}.label`),
-      variant: relationVariant(value.variant, `${p}.variant`),
+      variant,
+      ...(value.replyTo === undefined
+        ? {}
+        : { replyTo: identifier(value.replyTo, `${p}.replyTo`) }),
     };
-    return value.replyTo === undefined
-      ? { ...message, kind: "call" }
-      : { ...message, kind: "return", replyTo: ref(value.replyTo, `${p}.replyTo`) };
   });
 }
 
