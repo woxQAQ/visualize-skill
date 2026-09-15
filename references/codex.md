@@ -2,7 +2,7 @@
 
 ## 1. 生成片段
 
-使用 SDK 生成继承 Codex 主题的嵌入片段，保存到当前任务提供的 visualization 目录。具体用法读取 ../src/index.ts 和对应图表的示例。
+使用 SDK 生成继承 Codex 主题的嵌入片段，保存到当前任务提供的 visualization 目录。
 
 ## 2. 检查展示
 
