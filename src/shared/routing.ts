@@ -448,6 +448,12 @@ export function routeRelations(
   for (const relation of ordered) {
     const selected = select(relation, pools.get(relation.id)!, [...result.values()]);
     if (!selected) {
+      const geometry = [relation.from, relation.to]
+        .map((id) => {
+          const { x, y, width, height } = boxes.get(id)!;
+          return `${id}: x=${x}, y=${y}, width=${width}, height=${height}`;
+        })
+        .join("；");
       const constraints = [
         ...(relation.fromSide ? [`fromSide=${relation.fromSide}`] : []),
         ...(relation.toSide ? [`toSide=${relation.toSide}`] : []),
@@ -456,7 +462,7 @@ export function routeRelations(
         "RELATION_LAYOUT",
         `diagram.${chart.id}.relations.${relation.id}`,
         `无法在 ${relation.from} 与 ${relation.to} 之间放置清晰的连线和标签${constraints.length ? `（${constraints.join(", ")}）` : ""}。`,
-        `${constraints.length ? "调整连接边 fromSide、toSide，或" : ""}调整节点 position，增加关系沿线的留白，或缩短关系标签。`,
+        `当前画布矩形为 ${geometry}。根据节点所属分区或泳道换算局部 position，增加关系沿线的留白；也可调整 fromSide、toSide，或缩短关系标签。尺寸由系统计算。`,
       );
     }
     result.set(relation.id, selected);

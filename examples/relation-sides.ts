@@ -1,4 +1,5 @@
-import { architecture, entity, role } from "../src/index.ts";
+import { mkdir, writeFile } from "node:fs/promises";
+import { architecture, entity, role, render } from "../src/index.ts";
 
 const component = role({ id: "component", label: "组件" });
 const connections = [
@@ -37,21 +38,19 @@ const connections = [
   },
 ] as const;
 
-export const sides = architecture({
+const sides = architecture({
   id: "relation-sides",
-  title: "声明连接边：起点与终点",
+  meta: { title: "声明连接边：起点与终点" },
   nodes: connections.flatMap((connection) => [
     {
       entity: entity({ id: `${connection.id}-from`, label: connection.from }),
       role: component,
       position: { x: 0, y: connection.y },
-      size: { width: 200, height: 72 },
     },
     {
       entity: entity({ id: `${connection.id}-to`, label: connection.to }),
       role: component,
       position: { x: 500, y: connection.toY },
-      size: { width: 200, height: 72 },
     },
   ]),
   relations: connections.map(({ id, label, variant, fromSide, toSide }) => ({
@@ -65,4 +64,6 @@ export const sides = architecture({
   })),
 });
 
-export default sides;
+const html = render(sides);
+await mkdir("output", { recursive: true });
+await writeFile("output/relation-sides.html", html, "utf8");

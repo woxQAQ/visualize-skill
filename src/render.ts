@@ -38,7 +38,7 @@ function entityDetails(semantic: SemanticDiagram) {
           : undefined;
       const related = (
         chart.kind === "sequence"
-          ? chart.messages.filter((message) => message.variant !== "return")
+          ? chart.messages.filter((message) => message.kind !== "reply")
           : chart.relations
       ).filter((relation) => relation.from === entity.id || relation.to === entity.id);
       const rows = related
@@ -101,7 +101,11 @@ export function render(diagram: Diagram) {
     stylesheet,
     content: renderTemplate("figure", {
       id: chart.id,
-      title: chart.title,
+      title: chart.meta.title,
+      subtitle:
+        chart.meta.subtitle === undefined
+          ? ""
+          : `<span class="diagram-subtitle">${escape(chart.meta.subtitle)}</span>`,
       legend,
       svg: renderSvg(scene, chart, ctx),
     }),
@@ -113,7 +117,7 @@ export function render(diagram: Diagram) {
 export function renderPage(diagram: Diagram): string {
   const content = render(diagram);
   return renderTemplate("page", {
-    title: diagram.title,
+    title: diagram.meta.title,
     stylesheet: pageStylesheet,
     content,
   });

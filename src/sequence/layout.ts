@@ -98,7 +98,7 @@ export function layoutSequence(chart: SequenceChart, ctx: LayoutContext): Sequen
   const stack: Execution[] = [];
   const prior = new Map<string, Message>();
   for (const message of chart.messages) {
-    const returning = message.variant === "return";
+    const returning = message.kind === "reply";
     const self = message.from === message.to;
     const direction = centers.get(message.to)! >= centers.get(message.from)! ? 1 : -1;
     const participantIndex = nodes.findIndex((node) => node.id === message.from);
@@ -122,7 +122,7 @@ export function layoutSequence(chart: SequenceChart, ctx: LayoutContext): Sequen
         "SEQUENCE_LABEL_SPACE",
         `diagram.${chart.id}.${message.id}`,
         "参与者之间没有足够空间放置消息标签。",
-        "增加相关参与者的 size.width。",
+        "调整 participants 的声明顺序，或拆分消息较密集的图表；参与者尺寸由名称自动计算。",
       );
     }
     const label = wrap(
@@ -137,11 +137,11 @@ export function layoutSequence(chart: SequenceChart, ctx: LayoutContext): Sequen
     const fromX = anchor(message.from, stack, self ? 1 : direction);
     let toX;
 
-    if (returning && prior.get(message.replyTo!)!.variant !== "dashed") {
+    if (returning && prior.get(message.replyTo!)!.kind === "sync") {
       const completed = stack.pop()!;
       completed.activation.height = lineY - completed.activation.y;
       toX = anchor(message.to, stack, self ? 1 : -direction);
-    } else if (returning || message.variant === "dashed") {
+    } else if (returning || message.kind === "async") {
       toX = anchor(message.to, stack, self ? 1 : -direction);
     } else {
       const frame = activate(message, stack, arrivalY);

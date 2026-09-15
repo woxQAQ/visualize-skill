@@ -1,115 +1,94 @@
 import type { LaneLayout, SwimlaneChart, SwimlaneScene } from "./index.ts";
 import type { LayoutContext } from "../shared/model.ts";
-import { wrap } from "../design.ts";
+import { wrap, measure } from "../design.ts";
 import { fail } from "../diagnostics.ts";
 import { finish, nodeBox } from "../shared/layout.ts";
+import { dependencyLevels, placeBoxes } from "../shared/placement.ts";
 import { overlaps, routeRelations, borderObstacles } from "../shared/routing.ts";
 
 const margin = 32;
-const padding = 24;
+const padding = 48;
 
 export function layoutSwimlane(chart: SwimlaneChart, ctx: LayoutContext): SwimlaneScene {
   const p = `diagram.${chart.id}`;
-  const { headerWidth } = chart;
-  if (headerWidth <= 32) {
-    fail(
-      "LANE_CONTENT_FIT",
-      `${p}.headerWidth`,
-      "泳道标题栏宽度不足以容纳文字和内边距。",
-      "增加 headerWidth；标题左右各保留 16 像素内边距。",
+  const headerWidth = Math.ceil(
+    Math.max(96, Math.min(176, Math.max(...chart.lanes.map((lane) => measure(lane.label))) + 32)),
+  );
+  const measured = new Map(chart.nodes.map((node) => [node.entity, nodeBox(node, ctx, 0, 0)]));
+  const levels = dependencyLevels(
+    chart.nodes.map((node) => node.entity),
+    chart.relations,
+  );
+  const laneBoxes = new Map(
+    chart.lanes.map((lane) => [
+      lane.id,
+      placeBoxes(
+        chart.nodes
+          .filter((node) => node.lane === lane.id)
+          .map((node) => ({ ...measured.get(node.entity)!, position: node.position })),
+        levels,
+        {
+          horizontal: true,
+          maxWidth: 1280 - margin * 2 - headerWidth - padding * 2,
+          columnWidth: Math.max(...[...measured.values()].map((box) => box.width)) + 80,
+          rowHeight: Math.max(...[...measured.values()].map((box) => box.height)) + 80,
+        },
+      ),
+    ]),
+  );
+  const width =
+    headerWidth +
+    padding * 2 +
+    Math.max(
+      ...[...laneBoxes.values()].flatMap((boxes) =>
+        [...boxes.values()].map((box) => box.x + box.width),
+      ),
     );
-  }
-  if (chart.width <= headerWidth + padding * 2) {
-    fail(
-      "LANE_CONTENT_FIT",
-      `${p}.width`,
-      "泳道宽度不足以容纳标题栏和内容区。",
-      `增加 width 或减小 headerWidth；标题栏占 ${headerWidth} 像素，内容区左右各留 24 像素。`,
-    );
-  }
   let y = margin;
   const lanes: LaneLayout[] = chart.lanes.map((lane) => {
-    const title = wrap(lane.label, headerWidth - 32, `${p}.lanes.${lane.id}.label`, 3);
-    if (title.width > headerWidth - 32) {
-      fail(
-        "LANE_CONTENT_FIT",
-        `${p}.headerWidth`,
-        `泳道 ${lane.id} 的标题无法放入声明的标题栏宽度。`,
-        "增加 headerWidth，为标题文字和左右内边距留出足够空间。",
-      );
-    }
-    if (title.height + 32 > lane.height || lane.height <= padding * 2) {
-      fail(
-        "LANE_CONTENT_FIT",
-        `${p}.lanes.${lane.id}.height`,
-        "泳道高度不足以容纳标题或内容区。",
-        "增加泳道 height，或缩短泳道名称。",
-      );
-    }
-    const box = {
-      id: lane.id,
-      x: margin,
-      y,
-      width: chart.width,
-      height: lane.height,
-      title,
-      headerWidth,
-    };
-    y += lane.height;
+    const title = wrap(lane.label, headerWidth - 32, `${p}.lanes.${lane.id}.label`, 6);
+    const height = Math.max(
+      title.height + 32,
+      padding * 2 +
+        Math.max(...[...laneBoxes.get(lane.id)!.values()].map((box) => box.y + box.height)),
+    );
+    const box = { id: lane.id, x: margin, y, width, height, title, headerWidth };
+    y += height;
     return box;
-  });
-  const scene = finish<SwimlaneScene>({
-    kind: "swimlane",
-    id: chart.id,
-    width: chart.width + margin * 2,
-    height: y + margin,
-    nodes: [],
-    lanes,
-    edges: [],
   });
   const laneById = new Map(lanes.map((lane) => [lane.id, lane]));
-  scene.nodes = chart.nodes.map((node) => {
+  const nodes = chart.nodes.map((node) => {
     const lane = laneById.get(node.lane)!;
-    const box = nodeBox(
-      node,
-      ctx,
-      lane.x + headerWidth + padding + node.position.x,
-      lane.y + padding + node.position.y,
-    );
-    if (
-      box.x + box.width + padding > lane.x + lane.width ||
-      box.y + box.height + padding > lane.y + lane.height
-    ) {
-      fail(
-        "LANE_CONTENT_FIT",
-        `${p}.nodes.${node.entity}`,
-        `节点 ${node.entity} 超出了泳道 ${lane.id} 的内容区域。`,
-        "调整泳道 width、headerWidth、height 或节点 position、size；系统保持声明的尺寸。",
-      );
-    }
-    return box;
+    const box = laneBoxes.get(node.lane)!.get(node.entity)!;
+    return {
+      ...measured.get(node.entity)!,
+      x: lane.x + headerWidth + padding + box.x,
+      y: lane.y + padding + box.y,
+    };
   });
-  for (let i = 0; i < scene.nodes.length; i++) {
-    for (let j = i + 1; j < scene.nodes.length; j++) {
-      if (overlaps(scene.nodes[i], scene.nodes[j], 12)) {
+  for (let i = 0; i < nodes.length; i++) {
+    for (let j = i + 1; j < nodes.length; j++) {
+      if (overlaps(nodes[i], nodes[j], 12))
         fail(
           "NODE_OVERLAP",
-          `${p}.nodes.${scene.nodes[j].id}.position`,
-          `节点 ${scene.nodes[i].id} 与 ${scene.nodes[j].id} 重叠或间距不足。`,
-          "调整节点 position 或 size，至少保留 12 像素间距，并为连线和标签留白。",
+          `${p}.nodes.${nodes[j].id}.position`,
+          `节点 ${nodes[i].id} 与 ${nodes[j].id} 重叠或间距不足。`,
+          "调整 position，或省略该字段恢复自动布局；至少保留 12 像素间距。",
         );
-      }
     }
   }
-  scene.edges = routeRelations(chart, scene.nodes, {
+  const edges = routeRelations(chart, nodes, {
     obstacles: lanes.map((lane) => ({ ...lane, width: headerWidth })),
     labelObstacles: lanes.flatMap(borderObstacles),
-    bounds: {
-      x: margin + headerWidth,
-      y: margin,
-      width: chart.width - headerWidth,
-      height: y - margin,
-    },
+    bounds: { x: margin + headerWidth, y: margin, width: width - headerWidth, height: y - margin },
   });
-  return scene;
+  return finish({
+    kind: "swimlane",
+    id: chart.id,
+    width: width + margin * 2,
+    height: y + margin,
+    nodes,
+    lanes,
+    edges,
+  });
 }

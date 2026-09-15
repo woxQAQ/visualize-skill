@@ -1,8 +1,8 @@
 import type {
+  ChartMeta,
   EntityInput,
   Role,
   Position,
-  Size,
   Participant,
   Relation,
   RelationInput,
@@ -13,15 +13,15 @@ import type {
 } from "../shared/model.ts";
 
 /**
- * Explicitly positioned architecture entity. Inherited entity, role and size fields follow
- * Participant.
+ * Automatically placed architecture entity with an optional position correction.
+ * Inherited fields follow Participant.
  */
 export interface ArchitectureNode<E = string, R = string> extends Participant<E, R> {
   /**
    * Offset from the partition content origin after its header and padding, or from the chart
-   * content origin when ungrouped.
+   * content origin when ungrouped. Omit for automatic placement.
    */
-  readonly position: Position;
+  readonly position?: Position;
   /**
    * Optional ID in this chart's partitions; omission places the node directly in the chart content
    * area.
@@ -35,13 +35,11 @@ export interface ArchitecturePartition {
   readonly id: string;
   /** Trimmed, nonempty single-line text with no tabs; at most 48 Unicode code points. */
   readonly label: string;
-  /** Offset of the outer partition box from the chart content origin, inside the canvas margin. */
-  readonly position: Position;
   /**
-   * Outer box dimensions including title and padding; must contain all member nodes at their
-   * declared offsets.
+   * Offset of the outer partition box from the chart content origin, inside the canvas margin.
+   * Omit for automatic placement; the frame always grows to contain its members.
    */
-  readonly size: Size;
+  readonly position?: Position;
 }
 
 /**
@@ -56,9 +54,12 @@ export interface ArchitectureChart<E = string, R = string> {
    * [a-z][a-z0-9-]*.
    */
   readonly id: string;
-  /** Nonempty display title for the figure and standalone page; plain text, not markup. */
-  readonly title: string;
-  /** Declare 1 to 12 nodes, with each entity appearing exactly once; positions are explicit. */
+  /** Shared title and optional subtitle; plain text, not markup. */
+  readonly meta: ChartMeta;
+  /**
+   * Declare 1 to 12 nodes, with each entity appearing exactly once.
+   * Optional positions are corrections after layout diagnostics.
+   */
   readonly nodes: readonly ArchitectureNode<E, R>[];
   /**
    * Groups referenced by node.partition; every declared partition must contain at least one node.
@@ -82,11 +83,11 @@ export interface ArchitectureOptions {
    * [a-z][a-z0-9-]*.
    */
   readonly id: string;
-  /** Nonempty display title for the figure and standalone page; plain text, not markup. */
-  readonly title: string;
+  /** Shared title and optional subtitle; plain text, not markup. */
+  readonly meta: ChartMeta;
   /**
-   * Declare 1 to 12 nodes, with each entity appearing exactly once; positions are explicit. Supply
-   * full entity and role definitions.
+   * Declare 1 to 12 nodes, with each entity appearing exactly once; supply full entity and role
+   * definitions. Optional positions are corrections after layout diagnostics.
    */
   readonly nodes: readonly ArchitectureNode<EntityInput, Role>[];
   /**

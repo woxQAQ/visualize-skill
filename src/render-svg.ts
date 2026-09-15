@@ -1,6 +1,13 @@
 import type { Chart, Scene } from "./model.ts";
 import type { LayoutContext, NodeLayout, TextLayout } from "./shared/model.ts";
-import { theme, measure, nodeDetailsEnabled, relationStyles, messageStyles } from "./design.ts";
+import {
+  theme,
+  measure,
+  nodeDetailsEnabled,
+  relationStyles,
+  messageStyles,
+  messageShapes,
+} from "./design.ts";
 import { escape, number } from "./markup.ts";
 
 function textBlock(
@@ -60,7 +67,10 @@ export function renderSvg(scene: Scene, chart: Chart, ctx: LayoutContext) {
   const openMarker = (width: number) => `open-arrow-${scene.id}-${width}`;
   const styledEdges =
     scene.kind === "sequence"
-      ? scene.edges.map((edge) => ({ ...edge, style: messageStyles[edge.variant] }))
+      ? scene.edges.map((edge) => ({
+          ...edge,
+          style: { ...messageStyles[edge.variant], ...messageShapes[edge.kind] },
+        }))
       : scene.edges.map((edge) => ({ ...edge, style: relationStyles[edge.variant] }));
   const edgeMarker = (edge: (typeof styledEdges)[number], width: number) =>
     edge.style.arrow === "open" ? openMarker(width) : callMarker;
@@ -153,7 +163,7 @@ export function renderSvg(scene: Scene, chart: Chart, ctx: LayoutContext) {
     .map((edge) => {
       const style = edge.style;
       return `
-    <path data-relation="${edge.id}" data-variant="${edge.variant}" d="${edge.path}" fill="none" stroke="${style.ink}" stroke-width="${style.width}"
+    <path data-relation="${edge.id}" data-variant="${edge.variant}"${"kind" in edge ? ` data-kind="${edge.kind}"` : ""} d="${edge.path}" fill="none" stroke="${style.ink}" stroke-width="${style.width}"
       stroke-dasharray="${style.dash}" marker-end="url(#${edgeMarker(edge, style.width)})"/>
     <path data-relation-hit="${edge.id}" d="${edge.path}" fill="none" stroke="transparent" stroke-width="12"
       vector-effect="non-scaling-stroke" pointer-events="stroke" aria-hidden="true"/>
@@ -176,8 +186,8 @@ export function renderSvg(scene: Scene, chart: Chart, ctx: LayoutContext) {
     <svg xmlns="http://www.w3.org/2000/svg" width="${scene.width}" height="${scene.height}"
       viewBox="0 0 ${scene.width} ${scene.height}" role="group"
       aria-labelledby="svg-title-${scene.id} svg-desc-${scene.id}" style="font-family:${theme.font};color:${theme.ink}">
-      <title id="svg-title-${scene.id}">${escape(chart.title)}</title>
-      <desc id="svg-desc-${scene.id}">悬停或键盘聚焦节点时强调当前节点、直接相邻节点和相连关系，弱化其余节点与关系。悬停关系线或关系文字时，仅强调当前关系及其起点和终点。${nodeDetailsEnabled ? "点击节点或按 Enter 查看详细内容。" : ""}${scene.kind === "sequence" ? "实心箭头表示同步调用，长虚线与开口箭头表示异步消息，短虚线与开口箭头表示响应。加粗彩色实线表示主链路，红色实线表示鉴权、权限或策略调用。生命线上的矩形表示同步执行区间，虚线框表示参与者分区。" : scene.kind === "swimlane" ? "横向泳道表示负责的人或系统，节点表示流程活动，箭头和标签表示流转方向与条件。" : "虚线框表示逻辑分区，箭头表示依赖，关系文字直接标注在线旁。"}</desc>
+      <title id="svg-title-${scene.id}">${escape(chart.meta.title)}</title>
+      <desc id="svg-desc-${scene.id}">${chart.meta.subtitle === undefined ? "" : `${escape(chart.meta.subtitle)} `}悬停或键盘聚焦节点时强调当前节点、直接相邻节点和相连关系，弱化其余节点与关系。悬停关系线或关系文字时，仅强调当前关系及其起点和终点。${nodeDetailsEnabled ? "点击节点或按 Enter 查看详细内容。" : ""}${scene.kind === "sequence" ? "实心箭头表示同步调用，长虚线与开口箭头表示异步消息，短虚线与开口箭头表示响应。加粗彩色实线表示主链路，红色实线表示鉴权、权限或策略调用。生命线上的矩形表示同步执行区间，虚线框表示参与者分区。" : scene.kind === "swimlane" ? "横向泳道表示负责的人或系统，节点表示流程活动，箭头和标签表示流转方向与条件。" : "虚线框表示逻辑分区，箭头表示依赖，关系文字直接标注在线旁。"}</desc>
       <style>@media screen {
         #diagram-${scene.id} svg:has(.node-link:is(:hover,:focus-visible),[data-relation-hit]:hover,[data-relation-label]:hover) :is([data-entity],[data-relation],[data-relation-label]) { opacity:0.45; }
         ${nodeHighlights}${highlights}

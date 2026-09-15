@@ -1,3 +1,11 @@
+/** Shared display metadata for every chart; geometry and identity remain separate. */
+export interface ChartMeta {
+  /** Nonempty display title for the figure, SVG accessibility label and standalone page. */
+  readonly title: string;
+  /** Optional nonempty supporting text displayed below the title; plain text, not markup. */
+  readonly subtitle?: string;
+}
+
 /**
  * Classification attached to an entity; reuse a tag ID only with the same label throughout a
  * chart.
@@ -71,20 +79,6 @@ export interface Position {
 }
 
 /**
- * Explicit geometry in SVG canvas units. Layout validates content fit instead of resizing the
- * declared box.
- */
-export interface Size {
-  /**
-   * Finite positive box width; include enough space for text and the containing layout's
-   * horizontal padding.
-   */
-  readonly width: number;
-  /** Finite positive box height; include enough space for wrapped text and vertical padding. */
-  readonly height: number;
-}
-
-/**
  * Endpoint reference resolved by ID; passing an object does not add it to the chart nodes or
  * participants.
  */
@@ -105,11 +99,6 @@ export interface Participant<E = string, R = string> {
    * appearance's legend category and color.
    */
   readonly role: R;
-  /**
-   * Explicit node or participant-header size; layout rejects insufficient space rather than
-   * truncating text or growing the box.
-   */
-  readonly size: Size;
 }
 
 /** Allowed visual presets for architecture and swimlane relations; validated by the SDK. */

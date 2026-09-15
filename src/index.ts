@@ -3,6 +3,7 @@ export { compile, render, renderPage } from "./render.ts";
 export { DiagnosticError } from "./diagnostics.ts";
 
 export type {
+  ChartMeta,
   Participant,
   Entity,
   EntityInput,
@@ -10,7 +11,6 @@ export type {
   Tag,
   Role,
   Position,
-  Size,
   Relation,
   RelationInput,
   RelationVariant,
@@ -34,6 +34,7 @@ export type {
   Message,
   MessageInput,
   MessageVariant,
+  MessageKind,
 } from "./sequence/index.ts";
 export type { Diagnostic } from "./diagnostics.ts";
 export type {

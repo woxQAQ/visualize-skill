@@ -1,4 +1,5 @@
 import type {
+  ChartMeta,
   EntityInput,
   Role,
   EntityRef,
@@ -29,15 +30,16 @@ export interface SequencePartition {
   readonly label: string;
 }
 
-/**
- * Accepted sequence event presets; unlike relation presets, these control call and response
- * validation.
- */
-export const messageVariants = ["default", "dashed", "emphasis", "return", "security"] as const;
+/** Message behaviors controlling response validation, execution bars and arrow shape. */
+export const messageKinds = ["sync", "async", "reply"] as const;
 
-/**
- * Sequence event preset; see Message.variant for synchronous, asynchronous and response behavior.
- */
+/** sync waits for a reply; async does not wait; reply responds to an earlier message. */
+export type MessageKind = (typeof messageKinds)[number];
+
+/** Visual emphasis presets, independent of message behavior. */
+export const messageVariants = ["default", "emphasis", "security"] as const;
+
+/** Controls color, stroke width and label weight without changing message behavior. */
 export type MessageVariant = (typeof messageVariants)[number];
 
 /**
@@ -56,13 +58,12 @@ export interface Message {
   readonly to: string;
   /** Nonempty event description; layout adds its own sequence number, so do not prefix a number. */
   readonly label: string;
-  /**
-   * default, emphasis and security are synchronous calls requiring a response; dashed is
-   * asynchronous with an optional response; return is a response.
-   */
+  /** sync requires a reply; async allows an optional reply; reply responds to an earlier message. */
+  readonly kind: MessageKind;
+  /** Visual emphasis only; does not affect response rules, execution bars or arrow shape. */
   readonly variant: MessageVariant;
   /**
-   * Required for return and forbidden for every other variant: ID of an earlier non-return
+   * Required for kind reply and forbidden for every other kind: ID of an earlier sync or async
    * message. Reverse its endpoints; allow one response per message and close synchronous calls
    * innermost first.
    */
@@ -88,12 +89,14 @@ export interface MessageInput {
    */
   readonly label: string;
   /**
-   * Defaults to default when omitted. default, emphasis and security are synchronous calls
-   * requiring a response; dashed is asynchronous with an optional response; return is a response.
+   * Defaults to sync. sync requires a reply; async allows an optional reply; reply responds to an
+   * earlier message. Awaited operations are sync even when implemented with async functions.
    */
+  readonly kind?: MessageKind;
+  /** Defaults to default. Controls visual emphasis independently of kind. */
   readonly variant?: MessageVariant;
   /**
-   * Required for return and forbidden for every other variant: ID of an earlier non-return
+   * Required for kind reply and forbidden for every other kind: ID of an earlier sync or async
    * message. Reverse its endpoints; allow one response per message and close synchronous calls
    * innermost first.
    */
@@ -112,8 +115,8 @@ export interface SequenceChart<E = string, R = string> {
    * [a-z][a-z0-9-]*.
    */
   readonly id: string;
-  /** Nonempty display title for the figure and standalone page; plain text, not markup. */
-  readonly title: string;
+  /** Shared title and optional subtitle; plain text, not markup. */
+  readonly meta: ChartMeta;
   /**
    * Declare 1 to 6 participants in left-to-right order, each entity once; keep partition members
    * contiguous.
@@ -132,8 +135,7 @@ export interface SequenceChart<E = string, R = string> {
 }
 
 /**
- * Input to sequence(); declare event order, participant order and header sizes rather than
- * absolute positions.
+ * Input to sequence(); declare event order and participant order; header sizes and positions are computed.
  */
 export interface SequenceOptions {
   /**
@@ -141,8 +143,8 @@ export interface SequenceOptions {
    * [a-z][a-z0-9-]*.
    */
   readonly id: string;
-  /** Nonempty display title for the figure and standalone page; plain text, not markup. */
-  readonly title: string;
+  /** Shared title and optional subtitle; plain text, not markup. */
+  readonly meta: ChartMeta;
   /**
    * Declare 1 to 6 participants in left-to-right order, each entity once; keep partition members
    * contiguous. Supply full entity and role definitions.
@@ -165,7 +167,9 @@ export interface SequenceOptions {
  * event number.
  */
 export interface SequenceEdgeLayout extends ConnectionLayout {
-  /** Original normalized message preset used to select message stroke and arrow styles. */
+  /** Original message behavior used to select line dashes and arrow shape. */
+  kind: MessageKind;
+  /** Original visual emphasis used to select color, stroke width and label weight. */
   variant: MessageVariant;
   /**
    * Absolute receiver arrival coordinate; equals lineY for ordinary messages and lies below it for

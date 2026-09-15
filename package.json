@@ -11,9 +11,9 @@
     "fmt:check": "oxfmt --check",
     "typecheck": "tsc --noEmit",
     "test": "pnpm typecheck && node --test test/*.test.ts",
-    "example": "node src/cli.ts examples/architecture.ts -o output/architecture.html",
-    "example:swimlane": "node src/cli.ts examples/swimlane.ts -o output/swimlane.html",
-    "example:sequence": "node src/cli.ts examples/sequence.ts -o output/sequence.html"
+    "example": "node examples/architecture.ts",
+    "example:swimlane": "node examples/swimlane.ts",
+    "example:sequence": "node examples/sequence.ts"
   },
   "devDependencies": {
     "@types/node": "^22.20.1",

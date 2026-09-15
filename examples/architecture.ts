@@ -1,4 +1,5 @@
-import { architecture } from "../src/index.ts";
+import { mkdir, writeFile } from "node:fs/promises";
+import { architecture, render } from "../src/index.ts";
 import {
   guidance,
   declaration,
@@ -14,58 +15,44 @@ import {
   output,
 } from "./system.ts";
 
-export const overview = architecture({
+const overview = architecture({
   id: "system-architecture",
-  title: "系统架构：声明入口与生成分区",
+  meta: { title: "系统架构", subtitle: "声明入口与生成分区" },
   partitions: [
     {
       id: "generation",
       label: "生成过程",
-      position: { x: 0, y: 220 },
-      size: { width: 908, height: 380 },
     },
   ],
   nodes: [
-    { entity: skill, role: guidance, position: { x: 0, y: 0 }, size: { width: 220, height: 88 } },
+    { entity: skill, role: guidance },
     {
       entity: sdk,
       role: declaration,
-      position: { x: 344, y: 0 },
-      size: { width: 220, height: 88 },
     },
     {
       entity: coordinator,
       role: presentation,
       partition: "generation",
-      position: { x: 0, y: 0 },
-      size: { width: 220, height: 88 },
     },
     {
       entity: validator,
       role: checking,
       partition: "generation",
-      position: { x: 0, y: 190 },
-      size: { width: 220, height: 88 },
     },
     {
       entity: layout,
       role: presentation,
       partition: "generation",
-      position: { x: 320, y: 190 },
-      size: { width: 220, height: 88 },
     },
     {
       entity: renderer,
       role: presentation,
       partition: "generation",
-      position: { x: 640, y: 190 },
-      size: { width: 220, height: 88 },
     },
     {
       entity: output,
       role: artifact,
-      position: { x: 664, y: 720 },
-      size: { width: 220, height: 88 },
     },
   ],
   relations: [
@@ -78,4 +65,6 @@ export const overview = architecture({
   ],
 });
 
-export default overview;
+const html = render(overview);
+await mkdir("output", { recursive: true });
+await writeFile("output/architecture.html", html, "utf8");

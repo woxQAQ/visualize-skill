@@ -1,4 +1,5 @@
-import { architecture, entity, role } from "../src/index.ts";
+import { mkdir, writeFile } from "node:fs/promises";
+import { architecture, entity, role, render } from "../src/index.ts";
 import type { RelationVariant } from "../src/index.ts";
 
 const component = role({ id: "component", label: "组件" });
@@ -11,21 +12,19 @@ const connections: { variant: RelationVariant; from: string; to: string; label: 
   { variant: "return", from: "业务服务", to: "调用方", label: "返回结果" },
 ];
 
-export const variants = architecture({
+const variants = architecture({
   id: "relation-variants",
-  title: "关系样式：六种预设",
+  meta: { title: "关系样式：六种预设" },
   nodes: connections.flatMap(({ variant, from, to }, index) => [
     {
       entity: entity({ id: `${variant}-from`, label: from }),
       role: component,
       position: { x: 0, y: index * 110 },
-      size: { width: 200, height: 72 },
     },
     {
       entity: entity({ id: `${variant}-to`, label: to }),
       role: component,
       position: { x: 500, y: index * 110 },
-      size: { width: 200, height: 72 },
     },
   ]),
   relations: connections.map(({ variant, label }) => ({
@@ -37,4 +36,6 @@ export const variants = architecture({
   })),
 });
 
-export default variants;
+const html = render(variants);
+await mkdir("output", { recursive: true });
+await writeFile("output/relation-variants.html", html, "utf8");

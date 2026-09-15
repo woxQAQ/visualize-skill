@@ -6,6 +6,7 @@ import type {
 } from "./architecture/index.ts";
 import type { Diagram, SemanticDiagram } from "./model.ts";
 import type {
+  ChartMeta,
   Entity,
   EntityInput,
   Participant,
@@ -13,7 +14,6 @@ import type {
   Role,
   RelationVariant,
   RelationSide,
-  Size,
   Tag,
 } from "./shared/model.ts";
 import type {
@@ -23,9 +23,10 @@ import type {
   SequenceOptions,
   Message,
   MessageVariant,
+  MessageKind,
 } from "./sequence/index.ts";
 import type { SwimlaneChart, SwimlaneOptions } from "./swimlane/index.ts";
-import { messageVariants } from "./sequence/index.ts";
+import { messageKinds, messageVariants } from "./sequence/index.ts";
 import { relationSides, relationVariants } from "./shared/model.ts";
 import { array, fail, fields, freeze, identifier, string } from "./diagnostics.ts";
 
@@ -34,6 +35,16 @@ function diagram<T extends Diagram>(value: T): T {
   freeze(value);
   diagrams.add(value);
   return value;
+}
+
+function chartMeta(value: unknown, path: string): ChartMeta {
+  fields(value, ["title", "subtitle"], path);
+  return {
+    title: string(value.title, `${path}.title`),
+    ...(value.subtitle === undefined
+      ? {}
+      : { subtitle: string(value.subtitle, `${path}.subtitle`) }),
+  };
 }
 
 function shortText(input: unknown, path: string, limit: number): string {
@@ -119,43 +130,19 @@ function position(value: unknown, path: string): Position {
   return { x: value.x as number, y: value.y as number };
 }
 
-function dimension(value: unknown, path: string): number {
-  if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
-    fail(
-      "INVALID_SIZE",
-      path,
-      "尺寸必须是大于零的有限数字。",
-      "声明正数尺寸，系统会检查内容是否放得下。",
-    );
-  }
-  return value;
-}
-
-function size(value: unknown, path: string): Size {
-  fields(value, ["width", "height"], path);
-  return {
-    width: dimension(value.width, `${path}.width`),
-    height: dimension(value.height, `${path}.height`),
-  };
-}
-
-function normalizeAppearance(
-  node: Record<string, unknown>,
-  path: string,
-): Participant<Entity, Role> {
+function normalizeAppearance(node: Record<string, unknown>): Participant<Entity, Role> {
   return {
     entity: normalizeEntity(node.entity),
     role: normalizeRole(node.role),
-    size: size(node.size, `${path}.size`),
   };
 }
 
 function participants(nodes: unknown, path: string): SequenceParticipant<Entity, Role>[] {
   return array(nodes, path).map((node, i) => {
     const p = `${path}[${i}]`;
-    fields(node, ["entity", "role", "size", "partition"], p);
+    fields(node, ["entity", "role", "partition"], p);
     return {
-      ...normalizeAppearance(node, p),
+      ...normalizeAppearance(node),
       ...(node.partition === undefined
         ? {}
         : { partition: identifier(node.partition, `${p}.partition`) }),
@@ -166,10 +153,12 @@ function participants(nodes: unknown, path: string): SequenceParticipant<Entity,
 function architectureNodes(nodes: unknown, path: string): ArchitectureNode<Entity, Role>[] {
   return array(nodes, path).map((node, i) => {
     const p = `${path}[${i}]`;
-    fields(node, ["entity", "role", "partition", "position", "size"], p);
+    fields(node, ["entity", "role", "partition", "position"], p);
     return {
-      ...normalizeAppearance(node, p),
-      position: position(node.position, `${p}.position`),
+      ...normalizeAppearance(node),
+      ...(node.position === undefined
+        ? {}
+        : { position: position(node.position, `${p}.position`) }),
       ...(node.partition === undefined
         ? {}
         : { partition: identifier(node.partition, `${p}.partition`) }),
@@ -180,12 +169,13 @@ function architectureNodes(nodes: unknown, path: string): ArchitectureNode<Entit
 function architecturePartitions(values: unknown, path: string): ArchitecturePartition[] {
   return array(values, path, { empty: true }).map((value, i) => {
     const p = `${path}[${i}]`;
-    fields(value, ["id", "label", "position", "size"], p);
+    fields(value, ["id", "label", "position"], p);
     return {
       id: identifier(value.id, `${p}.id`),
       label: shortText(value.label, `${p}.label`, 48),
-      position: position(value.position, `${p}.position`),
-      size: size(value.size, `${p}.size`),
+      ...(value.position === undefined
+        ? {}
+        : { position: position(value.position, `${p}.position`) }),
     };
   });
 }
@@ -251,6 +241,19 @@ function edges(values: unknown, path: string) {
   });
 }
 
+function messageKind(value: unknown, path: string): MessageKind {
+  if (value === undefined) return "sync";
+  const kind = messageKinds.find((kind) => kind === value);
+  if (kind === undefined)
+    fail(
+      "INVALID_MESSAGE_KIND",
+      path,
+      "消息行为必须是 sync、async 或 reply。",
+      "按是否等待响应选择 sync 或 async；响应用 reply。",
+    );
+  return kind;
+}
+
 function messageVariant(value: unknown, path: string): MessageVariant {
   if (value === undefined) return "default";
   const variant = messageVariants.find((variant) => variant === value);
@@ -258,7 +261,7 @@ function messageVariant(value: unknown, path: string): MessageVariant {
     fail(
       "INVALID_MESSAGE_VARIANT",
       path,
-      "消息必须使用时序图的语义预设。",
+      "消息样式必须使用时序图的视觉预设。",
       `可用预设：${messageVariants.join(", ")}。`,
     );
   return variant;
@@ -267,27 +270,29 @@ function messageVariant(value: unknown, path: string): MessageVariant {
 function messages(values: unknown, path: string): Message[] {
   return array(values, path).map((value, i) => {
     const p = `${path}[${i}]`;
-    fields(value, ["id", "from", "to", "label", "replyTo", "variant"], p);
+    fields(value, ["id", "from", "to", "label", "replyTo", "kind", "variant"], p);
+    const kind = messageKind(value.kind, `${p}.kind`);
     const variant = messageVariant(value.variant, `${p}.variant`);
-    if (variant === "return" && value.replyTo === undefined)
+    if (kind === "reply" && value.replyTo === undefined)
       fail(
         "MISSING_REPLY",
         `${p}.replyTo`,
         "响应必须关联原消息。",
         "用 replyTo 指定先前消息的标识。",
       );
-    if (variant !== "return" && value.replyTo !== undefined)
+    if (kind !== "reply" && value.replyTo !== undefined)
       fail(
         "UNEXPECTED_REPLY",
         `${p}.replyTo`,
-        "只有 return 消息可以声明 replyTo。",
-        '将响应的 variant 设为 "return"，或移除 replyTo。',
+        "只有 reply 消息可以声明 replyTo。",
+        '将响应的 kind 设为 "reply"，或移除 replyTo。',
       );
     return {
       id: identifier(value.id, `${p}.id`),
       from: ref(value.from, `${p}.from`),
       to: ref(value.to, `${p}.to`),
       label: string(value.label, `${p}.label`),
+      kind,
       variant,
       ...(value.replyTo === undefined
         ? {}
@@ -297,11 +302,11 @@ function messages(values: unknown, path: string): Message[] {
 }
 
 export function architecture(options: ArchitectureOptions): ArchitectureChart<Entity, Role> {
-  fields(options, ["id", "title", "nodes", "partitions", "relations"], "architecture");
+  fields(options, ["id", "meta", "nodes", "partitions", "relations"], "architecture");
   return diagram({
     kind: "architecture",
     id: identifier(options.id, "architecture.id"),
-    title: string(options.title, "architecture.title"),
+    meta: chartMeta(options.meta, "architecture.meta"),
     nodes: architectureNodes(options.nodes, "architecture.nodes"),
     partitions: architecturePartitions(options.partitions ?? [], "architecture.partitions"),
     relations: edges(options.relations, "architecture.relations"),
@@ -309,11 +314,11 @@ export function architecture(options: ArchitectureOptions): ArchitectureChart<En
 }
 
 export function sequence(options: SequenceOptions): SequenceChart<Entity, Role> {
-  fields(options, ["id", "title", "participants", "partitions", "messages"], "sequence");
+  fields(options, ["id", "meta", "participants", "partitions", "messages"], "sequence");
   return diagram({
     kind: "sequence",
     id: identifier(options.id, "sequence.id"),
-    title: string(options.title, "sequence.title"),
+    meta: chartMeta(options.meta, "sequence.meta"),
     participants: participants(options.participants, "sequence.participants"),
     partitions: sequencePartitions(options.partitions ?? [], "sequence.partitions"),
     messages: messages(options.messages, "sequence.messages"),
@@ -321,36 +326,28 @@ export function sequence(options: SequenceOptions): SequenceChart<Entity, Role> 
 }
 
 export function swimlane(options: SwimlaneOptions): SwimlaneChart<Entity, Role> {
-  fields(
-    options,
-    ["id", "title", "width", "headerWidth", "lanes", "nodes", "relations"],
-    "swimlane",
-  );
+  fields(options, ["id", "meta", "lanes", "nodes", "relations"], "swimlane");
   return diagram({
     kind: "swimlane",
     id: identifier(options.id, "swimlane.id"),
-    title: string(options.title, "swimlane.title"),
-    width: dimension(options.width, "swimlane.width"),
-    headerWidth: dimension(
-      options.headerWidth === undefined ? 144 : options.headerWidth,
-      "swimlane.headerWidth",
-    ),
+    meta: chartMeta(options.meta, "swimlane.meta"),
     lanes: array(options.lanes, "swimlane.lanes").map((lane, i) => {
       const p = `swimlane.lanes[${i}]`;
-      fields(lane, ["id", "label", "height"], p);
+      fields(lane, ["id", "label"], p);
       return {
         id: identifier(lane.id, `${p}.id`),
         label: shortText(lane.label, `${p}.label`, 48),
-        height: dimension(lane.height, `${p}.height`),
       };
     }),
     nodes: array(options.nodes, "swimlane.nodes").map((node, i) => {
       const p = `swimlane.nodes[${i}]`;
-      fields(node, ["entity", "role", "lane", "position", "size"], p);
+      fields(node, ["entity", "role", "lane", "position"], p);
       return {
-        ...normalizeAppearance(node, p),
+        ...normalizeAppearance(node),
         lane: identifier(node.lane, `${p}.lane`),
-        position: position(node.position, `${p}.position`),
+        ...(node.position === undefined
+          ? {}
+          : { position: position(node.position, `${p}.position`) }),
       };
     }),
     relations: edges(options.relations, "swimlane.relations"),
@@ -384,7 +381,7 @@ export function semanticDiagram(value: Diagram): SemanticDiagram {
   const appearance = (node: Participant<Entity, Role>) => {
     collect(entities, node.entity, `diagram.${node.entity.id}`);
     collect(roles, node.role, `diagram.${node.entity.id}.role`);
-    return { entity: node.entity.id, role: node.role.id, size: node.size };
+    return { entity: node.entity.id, role: node.role.id };
   };
   const chart =
     value.kind === "sequence"
@@ -400,7 +397,7 @@ export function semanticDiagram(value: Diagram): SemanticDiagram {
             ...value,
             nodes: value.nodes.map((node) => ({
               ...appearance(node),
-              position: node.position,
+              ...(node.position === undefined ? {} : { position: node.position }),
               lane: node.lane,
             })),
           }
@@ -408,7 +405,7 @@ export function semanticDiagram(value: Diagram): SemanticDiagram {
             ...value,
             nodes: value.nodes.map((node) => ({
               ...appearance(node),
-              position: node.position,
+              ...(node.position === undefined ? {} : { position: node.position }),
               ...(node.partition ? { partition: node.partition } : {}),
             })),
           };

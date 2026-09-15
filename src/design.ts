@@ -1,5 +1,5 @@
 import type { LayoutContext, RelationVariant, TextLayout } from "./shared/model.ts";
-import type { MessageVariant } from "./sequence/index.ts";
+import type { MessageKind, MessageVariant } from "./sequence/index.ts";
 import type { SemanticDiagram } from "./model.ts";
 import { freeze, fail } from "./diagnostics.ts";
 
@@ -41,17 +41,22 @@ export const relationStyles: Readonly<
   return: { ink: theme.muted, width: 1.5, dash: "5 4", weight: 400, arrow: "open" },
 });
 
+/** Stroke and label emphasis, independent of message behavior. */
 export const messageStyles: Readonly<
-  Record<
-    MessageVariant,
-    { ink: string; width: number; dash: string; weight: number; arrow: "filled" | "open" }
-  >
+  Record<MessageVariant, { ink: string; width: number; weight: number }>
 > = freeze({
-  default: { ink: theme.ink, width: 1.5, dash: "none", weight: 400, arrow: "filled" },
-  dashed: { ink: theme.ink, width: 1.5, dash: "8 4", weight: 400, arrow: "open" },
-  emphasis: { ink: "var(--viz-series-5)", width: 2.5, dash: "none", weight: 600, arrow: "filled" },
-  return: { ink: theme.muted, width: 1.5, dash: "5 4", weight: 400, arrow: "open" },
-  security: { ink: "var(--red)", width: 1.5, dash: "none", weight: 400, arrow: "filled" },
+  default: { ink: theme.ink, width: 1.5, weight: 400 },
+  emphasis: { ink: "var(--viz-series-5)", width: 2.5, weight: 600 },
+  security: { ink: "var(--red)", width: 1.5, weight: 400 },
+});
+
+/** Line and arrow shapes convey behavior even without color. */
+export const messageShapes: Readonly<
+  Record<MessageKind, { dash: string; arrow: "filled" | "open" }>
+> = freeze({
+  sync: { dash: "none", arrow: "filled" },
+  async: { dash: "none", arrow: "open" },
+  reply: { dash: "5 4", arrow: "open" },
 });
 
 const segmenter = new Intl.Segmenter("en", { granularity: "grapheme" });
@@ -121,7 +126,7 @@ export function wrap(
       "LABEL_CAPACITY",
       path,
       `文字需要 ${lines.length} 行，超过 ${maxLines} 行的可读范围。`,
-      "缩短图内名称或调整节点宽度；复杂关系应拆图表达。",
+      "缩短图内名称或标签；复杂关系应拆图表达。",
     );
   return {
     lines,

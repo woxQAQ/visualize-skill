@@ -14,9 +14,9 @@ export function validateSequence(
   for (const message of chart.messages) {
     const messagePath = `${path}.${message.id}`;
     endpoints(message);
-    if (message.variant === "return") {
+    if (message.kind === "reply") {
       const call = prior.get(message.replyTo!);
-      if (!call || call.variant === "return") {
+      if (!call || call.kind === "reply") {
         add(
           "UNKNOWN_REPLY",
           `${messagePath}.replyTo`,
@@ -32,7 +32,7 @@ export function validateSequence(
         );
       } else if (completed.has(call.id)) {
         add("DUPLICATE_REPLY", messagePath, "该消息已经收到响应。", "每条消息最多关联一个响应。");
-      } else if (call.variant !== "dashed" && stack.at(-1)?.id !== call.id) {
+      } else if (call.kind === "sync" && stack.at(-1)?.id !== call.id) {
         add(
           "RETURN_ORDER",
           messagePath,
@@ -40,16 +40,16 @@ export function validateSequence(
           "先返回内层调用，再返回外层调用。",
         );
       } else {
-        if (call.variant !== "dashed") stack.pop();
+        if (call.kind === "sync") stack.pop();
         completed.add(call.id);
       }
-    } else if (message.variant !== "dashed") {
+    } else if (message.kind === "sync") {
       if (stack.length && stack.at(-1)!.to !== message.from) {
         add(
           "CALL_WHILE_BLOCKED",
           messagePath,
           "消息发送方不在当前同步调用的执行位置。",
-          "先返回当前同步调用，或用 dashed 表达独立的异步消息。",
+          '先返回当前同步调用，或用 kind: "async" 表达独立的异步消息。',
         );
       }
       if (stack.filter((call) => call.to === message.to).length >= 4) {
@@ -70,7 +70,7 @@ export function validateSequence(
       "UNFINISHED_CALL",
       `${path}.${call.id}`,
       `同步调用 ${call.id} 没有响应，无法确定执行条的终点。`,
-      '添加 variant 为 "return"、端点反向且 replyTo 指向此调用的消息。',
+      '添加 kind 为 "reply"、端点反向且 replyTo 指向此调用的消息。',
     );
   }
   if (chart.messages.length > 32) {

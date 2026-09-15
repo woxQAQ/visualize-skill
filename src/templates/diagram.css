@@ -27,6 +27,13 @@
   color: var(--foreground);
   overflow-wrap: anywhere;
 }
+.diagram-widget .diagram-subtitle {
+  display: block;
+  margin-top: 4px;
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--muted-foreground);
+}
 .diagram-widget .legend {
   display: flex;
   flex-wrap: wrap;

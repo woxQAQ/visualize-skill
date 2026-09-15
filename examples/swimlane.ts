@@ -1,4 +1,5 @@
-import { entity, role, swimlane } from "../src/index.ts";
+import { mkdir, writeFile } from "node:fs/promises";
+import { entity, role, swimlane, render } from "../src/index.ts";
 
 const submission = role({ id: "submission", label: "提交申请" });
 const review = role({ id: "review", label: "审核决定" });
@@ -13,51 +14,39 @@ const approve = entity({ id: "approve", label: "审核申请", description: "检
 const pay = entity({ id: "pay", label: "安排付款" });
 const archive = entity({ id: "archive", label: "归档凭证" });
 
-export const expense = swimlane({
+const expense = swimlane({
   id: "expense-flow",
-  title: "报销流程：申请、审核与付款",
-  width: 1000,
-  headerWidth: 50,
+  meta: { title: "报销流程：申请、审核与付款" },
   lanes: [
-    { id: "employee", label: "申请人", height: 200 },
-    { id: "manager", label: "审批人", height: 200 },
-    { id: "finance", label: "财务", height: 200 },
+    { id: "employee", label: "申请人" },
+    { id: "manager", label: "审批人" },
+    { id: "finance", label: "财务" },
   ],
   nodes: [
     {
       entity: submit,
       role: submission,
       lane: "employee",
-      position: { x: 24, y: 40 },
-      size: { width: 180, height: 80 },
     },
     {
       entity: revise,
       role: submission,
       lane: "employee",
-      position: { x: 384, y: 40 },
-      size: { width: 180, height: 80 },
     },
     {
       entity: approve,
       role: review,
       lane: "manager",
-      position: { x: 24, y: 40 },
-      size: { width: 180, height: 80 },
     },
     {
       entity: pay,
       role: payment,
       lane: "finance",
-      position: { x: 384, y: 40 },
-      size: { width: 180, height: 80 },
     },
     {
       entity: archive,
       role: payment,
       lane: "finance",
-      position: { x: 704, y: 40 },
-      size: { width: 180, height: 80 },
     },
   ],
   relations: [
@@ -69,4 +58,6 @@ export const expense = swimlane({
   ],
 });
 
-export default expense;
+const html = render(expense);
+await mkdir("output", { recursive: true });
+await writeFile("output/swimlane.html", html, "utf8");

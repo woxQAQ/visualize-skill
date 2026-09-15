@@ -1,6 +1,6 @@
 import type { LayoutContext, NodeLayout, Participant, Point } from "./model.ts";
 import type { Scene } from "../model.ts";
-import { theme, wrap } from "../design.ts";
+import { theme, wrap, measure } from "../design.ts";
 import { fail } from "../diagnostics.ts";
 
 export function nodeBox(
@@ -11,29 +11,20 @@ export function nodeBox(
   { description = true } = {},
 ): NodeLayout {
   const entity = ctx.entities.get(node.entity)!;
-  const { width, height } = node.size;
-  if (width <= 32) {
-    fail(
-      "NODE_CONTENT_FIT",
-      `node.${entity.id}.size.width`,
-      "节点宽度不足以容纳文字和内边距。",
-      "增加 size.width；节点左右各保留 16 像素内边距。",
-    );
-  }
+  const textWidth = Math.max(
+    ...entity.label.split("\n").map((line) => measure(line)),
+    description && entity.description ? measure(entity.description, 12) : 0,
+  );
+  const width = Math.ceil(
+    Math.max(description ? 160 : 120, Math.min(description ? 280 : 160, textWidth + 32)),
+  );
   const title = wrap(entity.label, width - 32, `entity.${entity.id}.label`, 3);
   const detail =
     description && entity.description
       ? wrap(entity.description, width - 32, `entity.${entity.id}.description`, 4, 12)
       : null;
   const contentHeight = 28 + title.height + (detail ? detail.height + 6 : 0);
-  if (contentHeight > height || title.width > width - 32 || (detail && detail.width > width - 32)) {
-    fail(
-      "NODE_CONTENT_FIT",
-      `node.${entity.id}.size`,
-      `节点 ${entity.id} 的内容无法放入声明的 ${width} × ${height} 尺寸。`,
-      `当前文字至少需要 ${contentHeight} 像素高度。增加宽高或缩短图内摘要，系统不会自动放大节点或截断文字。`,
-    );
-  }
+  const height = Math.max(56, contentHeight);
   return { id: entity.id, role: node.role, x, y, width, height, contentHeight, title, detail };
 }
 

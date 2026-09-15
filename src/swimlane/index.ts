@@ -1,4 +1,5 @@
 import type {
+  ChartMeta,
   EntityInput,
   Role,
   Position,
@@ -23,15 +24,10 @@ export interface Lane {
    * code points.
    */
   readonly label: string;
-  /**
-   * Finite positive outer lane height in canvas units; must fit its title, activity nodes and
-   * vertical padding.
-   */
-  readonly height: number;
 }
 
 /**
- * Explicitly positioned activity belonging to exactly one lane; inherited fields follow
+ * Automatically placed activity belonging to exactly one lane; inherited fields follow
  * Participant.
  */
 export interface SwimlaneNode<E = string, R = string> extends Participant<E, R> {
@@ -41,9 +37,9 @@ export interface SwimlaneNode<E = string, R = string> extends Participant<E, R> 
   readonly lane: string;
   /**
    * Offset from the lane content origin, to the right of its title column and inside the content
-   * padding.
+   * padding. Omit for automatic placement.
    */
-  readonly position: Position;
+  readonly position?: Position;
 }
 
 /**
@@ -58,23 +54,13 @@ export interface SwimlaneChart<E = string, R = string> {
    * [a-z][a-z0-9-]*.
    */
   readonly id: string;
-  /** Nonempty display title for the figure and standalone page; plain text, not markup. */
-  readonly title: string;
-  /**
-   * Total lane width in canvas units, including the shared title column and content padding; must
-   * leave room for nodes.
-   */
-  readonly width: number;
-  /**
-   * Shared title-column width in canvas units; must exceed 32 and fit wrapped lane labels. Always
-   * present after normalization.
-   */
-  readonly headerWidth: number;
+  /** Shared title and optional subtitle; plain text, not markup. */
+  readonly meta: ChartMeta;
   /** Nonempty list in top-to-bottom order; each lane must contain at least one activity node. */
   readonly lanes: readonly Lane[];
   /**
-   * Declare 1 to 12 nodes, with each entity appearing exactly once; positions are explicit. Every
-   * node references one lane.
+   * Declare 1 to 12 nodes, with each entity appearing exactly once; every node references one lane.
+   * Optional positions are corrections after layout diagnostics.
    */
   readonly nodes: readonly SwimlaneNode<E, R>[];
   /**
@@ -85,8 +71,7 @@ export interface SwimlaneChart<E = string, R = string> {
 }
 
 /**
- * Input to swimlane(); declare lane heights, one shared width and activity offsets within each
- * lane.
+ * Input to swimlane(); declare responsible parties, activities and relations. Geometry is computed.
  */
 export interface SwimlaneOptions {
   /**
@@ -94,23 +79,13 @@ export interface SwimlaneOptions {
    * [a-z][a-z0-9-]*.
    */
   readonly id: string;
-  /** Nonempty display title for the figure and standalone page; plain text, not markup. */
-  readonly title: string;
-  /**
-   * Total lane width in canvas units, including the shared title column and content padding; must
-   * leave room for nodes.
-   */
-  readonly width: number;
-  /**
-   * Defaults to 144 when omitted. Shared title-column width in canvas units; must exceed 32 and
-   * fit wrapped lane labels.
-   */
-  readonly headerWidth?: number;
+  /** Shared title and optional subtitle; plain text, not markup. */
+  readonly meta: ChartMeta;
   /** Nonempty list in top-to-bottom order; each lane must contain at least one activity node. */
   readonly lanes: readonly Lane[];
   /**
-   * Declare 1 to 12 nodes, with each entity appearing exactly once; positions are explicit. Supply
-   * full entity and role definitions and a lane ID.
+   * Declare 1 to 12 nodes, with each entity appearing exactly once; supply full entity and role definitions
+   * and a lane ID. Optional positions are corrections after layout diagnostics.
    */
   readonly nodes: readonly SwimlaneNode<EntityInput, Role>[];
   /**
@@ -147,7 +122,7 @@ export interface SwimlaneScene {
   id: string;
   /** Shared lane width plus the outer canvas margins. */
   width: number;
-  /** Sum of declared lane heights plus outer canvas margins. */
+  /** Sum of computed lane heights plus outer canvas margins. */
   height: number;
   /**
    * Computed activity boxes in chart.nodes order, with local offsets resolved to canvas

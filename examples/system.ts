@@ -1,4 +1,4 @@
-import { entity, role } from "../src/index.ts";
+import { entity, role, sequence } from "../src/index.ts";
 
 export const guidance = role({ id: "guidance", label: "内容指导" });
 export const declaration = role({ id: "declaration", label: "语义声明" });
@@ -68,5 +68,64 @@ export const output = entity({
   tags: [
     { id: "offline", label: "本地生成" },
     { id: "interactive", label: "节点交互" },
+  ],
+});
+
+export const generation = sequence({
+  id: "generation-sequence",
+  meta: { title: "生成成功路径：调用、执行与响应" },
+  participants: [
+    { entity: sdk, role: declaration },
+    { entity: coordinator, role: presentation },
+    { entity: validator, role: checking },
+    { entity: layout, role: presentation },
+    { entity: renderer, role: presentation },
+  ],
+  messages: [
+    { id: "submit", from: sdk, to: coordinator, label: "生成图表", variant: "emphasis" },
+    { id: "check", from: coordinator, to: validator, label: "检查语义" },
+    {
+      id: "checked",
+      from: validator,
+      to: coordinator,
+      label: "检查结果",
+      replyTo: "check",
+      kind: "reply",
+    },
+    { id: "place", from: coordinator, to: layout, label: "计算布局" },
+    {
+      id: "placed",
+      from: layout,
+      to: coordinator,
+      label: "几何结果",
+      kind: "reply",
+      replyTo: "place",
+    },
+    { id: "paint", from: coordinator, to: renderer, label: "渲染 HTML" },
+    { id: "assemble-properties", from: renderer, to: renderer, label: "汇总节点属性" },
+    {
+      id: "properties-ready",
+      from: renderer,
+      to: renderer,
+      label: "属性已就绪",
+      kind: "reply",
+      replyTo: "assemble-properties",
+    },
+    {
+      id: "painted",
+      from: renderer,
+      to: coordinator,
+      label: "图形片段",
+      kind: "reply",
+      replyTo: "paint",
+    },
+    {
+      id: "built",
+      from: coordinator,
+      to: sdk,
+      label: "返回图形",
+      kind: "reply",
+      replyTo: "submit",
+    },
   ],
 });
