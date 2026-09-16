@@ -47,7 +47,11 @@ export function layoutSequence(chart: SequenceChart, ctx: LayoutContext): Sequen
   const nodeY = partitions.length
     ? 60 + Math.max(...partitions.map((partition) => partition.title.height))
     : 24;
-  for (const node of nodes) node.y = nodeY;
+  const headerHeight = Math.max(...nodes.map((node) => node.height));
+  for (const node of nodes) {
+    node.y = nodeY;
+    node.height = headerHeight;
+  }
   const borders = partitions
     .flatMap((partition) => [partition.x, partition.x + partition.width])
     .sort((a, b) => a - b);
@@ -65,7 +69,6 @@ export function layoutSequence(chart: SequenceChart, ctx: LayoutContext): Sequen
     return spaces.sort((a, b) => b.width - a.width)[0] ?? { x, width: 0 };
   }
 
-  const headerHeight = Math.max(...nodes.map((node) => node.height));
   const centers = new Map(nodes.map((node) => [node.id, node.x + node.width / 2]));
   const width = nodes.at(-1)!.x + nodes.at(-1)!.width + 52;
   const edges: SequenceEdgeLayout[] = [],

@@ -48,7 +48,7 @@ interface PlacementBox {
   position?: Position;
 }
 
-/** Place measured boxes in dependency order while reserving explicit local coordinates first. */
+/** Center measured boxes in dependency rows and columns; explicit coordinates remain fixed. */
 export function placeBoxes(
   boxes: readonly PlacementBox[],
   levels: ReadonlyMap<string, number>,
@@ -64,39 +64,92 @@ export function placeBoxes(
   for (const box of boxes) {
     if (box.position) placed.set(box.id, { ...box.position, width: box.width, height: box.height });
   }
-  const columns = Math.max(1, Math.floor((maxWidth + gap) / columnWidth));
-  let nextY = 0;
-  for (const level of [...new Set(boxes.map((box) => levels.get(box.id) ?? 0))].sort(
-    (a, b) => a - b,
-  )) {
-    const members = boxes.filter((box) => (levels.get(box.id) ?? 0) === level);
-    let x = 0,
-      y = nextY,
-      height = 0;
-    for (const box of members) {
-      if (box.position) continue;
-      if (horizontal) {
-        x = (level % columns) * columnWidth;
-        y = Math.floor(level / columns) * rowHeight;
-      } else if (x > 0 && x + box.width > maxWidth) {
-        x = 0;
-        y += height + gap;
-        height = 0;
-      }
-      const rect = { x, y, width: box.width, height: box.height };
-      // Pins never move. Resolve automatic collisions by moving below occupied boxes.
-      for (;;) {
-        const conflicts = [...placed.values()].filter((other) => overlaps(rect, other, gap / 2));
-        if (!conflicts.length) break;
-        rect.y = Math.max(...conflicts.map((other) => other.y + other.height + gap));
-      }
-      placed.set(box.id, rect);
-      if (!horizontal) {
-        x += box.width + gap;
-        height = Math.max(height, rect.y - y + box.height);
+  const automatic = boxes.filter((box) => !box.position);
+  const groups = [...new Set(automatic.map((box) => levels.get(box.id) ?? 0))]
+    .sort((a, b) => a - b)
+    .map((level) => ({
+      level,
+      members: automatic.filter((box) => (levels.get(box.id) ?? 0) === level),
+    }));
+  const rows = new Map<number, Map<number, PlacementBox>>();
+  let widths: number[];
+  if (horizontal) {
+    const columns = Math.max(1, Math.floor((maxWidth + gap) / columnWidth));
+    widths = Array.from({ length: columns }, () => columnWidth - gap);
+    for (const { level, members } of groups) {
+      for (const box of members) {
+        const column = level % columns;
+        let row = Math.floor(level / columns);
+        while (rows.get(row)?.has(column)) row++;
+        if (!rows.has(row)) rows.set(row, new Map());
+        rows.get(row)!.set(column, box);
       }
     }
-    nextY = y + height + gap;
+  } else {
+    // Measure columns across all levels before placing any row. Unequal node
+    // widths then share center lines without forcing every node to grow.
+    let columns = Math.max(1, ...groups.map(({ members }) => members.length));
+    for (;;) {
+      widths = Array.from({ length: columns }, () => 0);
+      for (const { members } of groups) {
+        members.forEach((box, index) => {
+          const column = index % columns;
+          widths[column] = Math.max(widths[column], box.width);
+        });
+      }
+      if (
+        columns === 1 ||
+        widths.reduce((sum, width) => sum + width, 0) + gap * (columns - 1) <= maxWidth
+      )
+        break;
+      columns--;
+    }
+    for (const { members } of groups) {
+      for (let index = 0; index < members.length; index += columns) {
+        rows.set(
+          rows.size,
+          new Map(members.slice(index, index + columns).map((box, column) => [column, box])),
+        );
+      }
+    }
+  }
+  const centers: number[] = [];
+  let nextX = 0;
+  for (const width of widths) {
+    centers.push(nextX + width / 2);
+    nextX += width + gap;
+  }
+  let nextY = 0;
+  for (const [row, members] of [...rows].sort(([a], [b]) => a - b)) {
+    const height = Math.max(
+      horizontal ? rowHeight - gap : 0,
+      ...[...members.values()].map((box) => box.height),
+    );
+    const top = Math.max(nextY, horizontal ? row * rowHeight : 0);
+    const rects = [...members].map(([column, box]) => ({
+      id: box.id,
+      x: centers[column] - box.width / 2,
+      y: top + (height - box.height) / 2,
+      width: box.width,
+      height: box.height,
+    }));
+    // Move the whole row around pins so collision resolution preserves its
+    // horizontal center line as well as the column centers.
+    let shift = 0;
+    for (;;) {
+      let required = 0;
+      for (const rect of rects) {
+        for (const other of placed.values()) {
+          if (overlaps(rect, other, gap / 2))
+            required = Math.max(required, other.y + other.height + gap - rect.y);
+        }
+      }
+      if (!required) break;
+      for (const rect of rects) rect.y += required;
+      shift += required;
+    }
+    for (const { id, ...rect } of rects) placed.set(id, rect);
+    nextY = top + shift + height + gap;
   }
   return placed;
 }
