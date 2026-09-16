@@ -60,7 +60,7 @@ export interface SwimlaneChart<E = string, R = string> {
   readonly lanes: readonly Lane[];
   /**
    * Declare 1 to 12 nodes, with each entity appearing exactly once; every node references one lane.
-   * Optional positions are corrections after layout diagnostics.
+   * Optional positions express intended placement or refine automatic layout.
    */
   readonly nodes: readonly SwimlaneNode<E, R>[];
   /**
@@ -85,7 +85,7 @@ export interface SwimlaneOptions {
   readonly lanes: readonly Lane[];
   /**
    * Declare 1 to 12 nodes, with each entity appearing exactly once; supply full entity and role definitions
-   * and a lane ID. Optional positions are corrections after layout diagnostics.
+   * and a lane ID. Optional positions express intended placement or refine automatic layout.
    */
   readonly nodes: readonly SwimlaneNode<EntityInput, Role>[];
   /**

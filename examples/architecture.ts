@@ -22,6 +22,7 @@ const overview = architecture({
     {
       id: "generation",
       label: "生成过程",
+      nodes: [coordinator, validator, layout, renderer],
     },
   ],
   nodes: [
@@ -33,22 +34,18 @@ const overview = architecture({
     {
       entity: coordinator,
       role: presentation,
-      partition: "generation",
     },
     {
       entity: validator,
       role: checking,
-      partition: "generation",
     },
     {
       entity: layout,
       role: presentation,
-      partition: "generation",
     },
     {
       entity: renderer,
       role: presentation,
-      partition: "generation",
     },
     {
       entity: output,

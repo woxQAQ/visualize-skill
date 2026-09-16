@@ -21,15 +21,15 @@ function entityDetails(semantic: SemanticDiagram) {
         (node) => node.entity === entity.id,
       )!;
       const partition =
-        chart.kind !== "swimlane"
-          ? chart.partitions.find(
-              (partition) =>
-                partition.id ===
-                (chart.kind === "sequence" ? chart.participants : chart.nodes).find(
-                  (node) => node.entity === entity.id,
-                )?.partition,
-            )
-          : undefined;
+        chart.kind === "architecture"
+          ? chart.partitions.find((partition) => partition.nodes.includes(entity.id))
+          : chart.kind === "sequence"
+            ? chart.partitions.find(
+                (partition) =>
+                  partition.id ===
+                  chart.participants.find((node) => node.entity === entity.id)?.partition,
+              )
+            : undefined;
       const lane =
         chart.kind === "swimlane"
           ? chart.lanes.find(

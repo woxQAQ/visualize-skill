@@ -1,6 +1,7 @@
 import type {
   ChartMeta,
   EntityInput,
+  EntityRef,
   Role,
   Position,
   Participant,
@@ -13,7 +14,7 @@ import type {
 } from "../shared/model.ts";
 
 /**
- * Automatically placed architecture entity with an optional position correction.
+ * Architecture entity with optional local placement.
  * Inherited fields follow Participant.
  */
 export interface ArchitectureNode<E = string, R = string> extends Participant<E, R> {
@@ -22,19 +23,20 @@ export interface ArchitectureNode<E = string, R = string> extends Participant<E,
    * content origin when ungrouped. Omit for automatic placement.
    */
   readonly position?: Position;
-  /**
-   * Optional ID in this chart's partitions; omission places the node directly in the chart content
-   * area.
-   */
-  readonly partition?: string;
 }
 
 /** A positioned container for related architecture nodes, not an entity or a relation endpoint. */
-export interface ArchitecturePartition {
+export interface ArchitecturePartition<E = string> {
   /** Unique within the chart's partitions. Use a stable identifier matching [a-z][a-z0-9-]*. */
   readonly id: string;
   /** Trimmed, nonempty single-line text with no tabs; at most 48 Unicode code points. */
   readonly label: string;
+  /**
+   * Nonempty list of member entity references, each declared in chart.nodes. A node may belong to
+   * at most one partition and may appear only once in this list. References normalize to IDs;
+   * chart.nodes order determines member layout order.
+   */
+  readonly nodes: readonly E[];
   /**
    * Offset of the outer partition box from the chart content origin, inside the canvas margin.
    * Omit for automatic placement; the frame always grows to contain its members.
@@ -58,12 +60,12 @@ export interface ArchitectureChart<E = string, R = string> {
   readonly meta: ChartMeta;
   /**
    * Declare 1 to 12 nodes, with each entity appearing exactly once.
-   * Optional positions are corrections after layout diagnostics.
+   * Optional positions express intended placement or refine automatic layout.
    */
   readonly nodes: readonly ArchitectureNode<E, R>[];
   /**
-   * Groups referenced by node.partition; every declared partition must contain at least one node.
-   * Empty when no groups are declared.
+   * Groups declaring their members through partition.nodes; unlisted nodes remain in chart
+   * content. Empty when no groups are declared.
    */
   readonly partitions: readonly ArchitecturePartition[];
   /**
@@ -87,14 +89,14 @@ export interface ArchitectureOptions {
   readonly meta: ChartMeta;
   /**
    * Declare 1 to 12 nodes, with each entity appearing exactly once; supply full entity and role
-   * definitions. Optional positions are corrections after layout diagnostics.
+   * definitions. Optional positions express intended placement or refine automatic layout.
    */
   readonly nodes: readonly ArchitectureNode<EntityInput, Role>[];
   /**
-   * Groups referenced by node.partition; every declared partition must contain at least one node.
-   * Omission normalizes to an empty array.
+   * Groups declaring member entities or IDs through partition.nodes; references do not add nodes
+   * to the chart. Omission normalizes to an empty array.
    */
-  readonly partitions?: readonly ArchitecturePartition[];
+  readonly partitions?: readonly ArchitecturePartition<EntityRef>[];
   /**
    * Up to 16 directed relations with unique IDs and endpoints present in nodes; an empty array is
    * allowed. Endpoints accept entity definitions or IDs.

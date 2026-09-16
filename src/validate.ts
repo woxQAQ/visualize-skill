@@ -67,7 +67,6 @@ export function validate(doc: SemanticDiagram): SemanticDiagram {
         );
   };
   if (chart.kind !== "swimlane") {
-    const members = chart.kind === "sequence" ? chart.participants : chart.nodes;
     const partitionIds = new Set<string>();
     for (const partition of chart.partitions) {
       if (partitionIds.has(partition.id))
@@ -78,7 +77,42 @@ export function validate(doc: SemanticDiagram): SemanticDiagram {
           "为本图每个逻辑分区使用唯一标识。",
         );
       partitionIds.add(partition.id);
-      if (!members.some((node) => node.partition === partition.id))
+    }
+  }
+  if (chart.kind === "architecture") {
+    const membership = new Set<string>();
+    for (const partition of chart.partitions) {
+      const p = `${path}.partitions.${partition.id}.nodes`;
+      if (!partition.nodes.length)
+        add(
+          "EMPTY_PARTITION",
+          p,
+          "分区没有包含节点。",
+          "在 partition.nodes 中声明成员，或移除空分区。",
+        );
+      partition.nodes.forEach((id, index) => {
+        if (!ids.has(id))
+          add(
+            "UNKNOWN_PARTITION_NODE",
+            `${p}[${index}]`,
+            `分区成员 ${id} 未出现在当前图表中。`,
+            "先在图表 nodes 中声明节点，再通过实体或 ID 引用。",
+          );
+        if (membership.has(id))
+          add(
+            "DUPLICATE_PARTITION_NODE",
+            `${p}[${index}]`,
+            `节点 ${id} 在分区成员中重复出现。`,
+            "每个节点最多属于一个分区，且只能在成员列表中出现一次。",
+          );
+        membership.add(id);
+      });
+    }
+  }
+  if (chart.kind === "sequence") {
+    const partitionIds = new Set(chart.partitions.map((partition) => partition.id));
+    for (const partition of chart.partitions) {
+      if (!chart.participants.some((node) => node.partition === partition.id))
         add(
           "EMPTY_PARTITION",
           `${path}.partitions.${partition.id}`,
@@ -86,7 +120,7 @@ export function validate(doc: SemanticDiagram): SemanticDiagram {
           "为节点声明 partition，或移除空分区。",
         );
     }
-    for (const node of members) {
+    for (const node of chart.participants) {
       if (node.partition && !partitionIds.has(node.partition))
         add(
           "UNKNOWN_PARTITION",

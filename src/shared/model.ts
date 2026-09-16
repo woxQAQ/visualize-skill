@@ -79,7 +79,8 @@ export interface Position {
 }
 
 /**
- * Endpoint reference resolved by ID; passing an object does not add it to the chart nodes or
+ * Entity reference resolved by ID for relation endpoints or partition members; passing an object
+ * does not add it to the chart nodes or
  * participants.
  */
 export type EntityRef = string | EntityInput;

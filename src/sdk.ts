@@ -153,15 +153,12 @@ function participants(nodes: unknown, path: string): SequenceParticipant<Entity,
 function architectureNodes(nodes: unknown, path: string): ArchitectureNode<Entity, Role>[] {
   return array(nodes, path).map((node, i) => {
     const p = `${path}[${i}]`;
-    fields(node, ["entity", "role", "partition", "position"], p);
+    fields(node, ["entity", "role", "position"], p);
     return {
       ...normalizeAppearance(node),
       ...(node.position === undefined
         ? {}
         : { position: position(node.position, `${p}.position`) }),
-      ...(node.partition === undefined
-        ? {}
-        : { partition: identifier(node.partition, `${p}.partition`) }),
     };
   });
 }
@@ -169,10 +166,13 @@ function architectureNodes(nodes: unknown, path: string): ArchitectureNode<Entit
 function architecturePartitions(values: unknown, path: string): ArchitecturePartition[] {
   return array(values, path, { empty: true }).map((value, i) => {
     const p = `${path}[${i}]`;
-    fields(value, ["id", "label", "position"], p);
+    fields(value, ["id", "label", "nodes", "position"], p);
     return {
       id: identifier(value.id, `${p}.id`),
       label: shortText(value.label, `${p}.label`, 48),
+      nodes: array(value.nodes, `${p}.nodes`, { empty: true }).map((node, index) =>
+        ref(node, `${p}.nodes[${index}]`),
+      ),
       ...(value.position === undefined
         ? {}
         : { position: position(value.position, `${p}.position`) }),
@@ -406,7 +406,6 @@ export function semanticDiagram(value: Diagram): SemanticDiagram {
             nodes: value.nodes.map((node) => ({
               ...appearance(node),
               ...(node.position === undefined ? {} : { position: node.position }),
-              ...(node.partition ? { partition: node.partition } : {}),
             })),
           };
   return freeze({

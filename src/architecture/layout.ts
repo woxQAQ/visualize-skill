@@ -14,9 +14,14 @@ export function layoutArchitecture(
   ctx: LayoutContext,
 ): ArchitectureScene {
   const measured = new Map(chart.nodes.map((node) => [node.entity, nodeBox(node, ctx, 0, 0)]));
+  const membership = new Map(
+    chart.partitions.flatMap((partition) =>
+      partition.nodes.map((id) => [id, partition.id] as const),
+    ),
+  );
   const local = new Map<string, Rect>();
   const partitions: ArchitecturePartitionLayout[] = chart.partitions.map((partition) => {
-    const members = chart.nodes.filter((node) => node.partition === partition.id);
+    const members = chart.nodes.filter((node) => membership.get(node.entity) === partition.id);
     const boxes = placeBoxes(
       members.map((node) => ({ ...measured.get(node.entity)!, position: node.position })),
       dependencyLevels(
@@ -50,7 +55,9 @@ export function layoutArchitecture(
   const rootId = new Map(
     chart.nodes.map((node) => [
       node.entity,
-      node.partition ? `partition:${node.partition}` : `node:${node.entity}`,
+      membership.has(node.entity)
+        ? `partition:${membership.get(node.entity)}`
+        : `node:${node.entity}`,
     ]),
   );
   const roots = [
@@ -60,7 +67,7 @@ export function layoutArchitecture(
       position: chart.partitions[i].position,
     })),
     ...chart.nodes
-      .filter((node) => !node.partition)
+      .filter((node) => !membership.has(node.entity))
       .map((node) => ({
         ...measured.get(node.entity)!,
         id: `node:${node.entity}`,
@@ -85,7 +92,8 @@ export function layoutArchitecture(
   }
   const partitionById = new Map(partitions.map((partition) => [partition.id, partition]));
   const nodes: NodeLayout[] = chart.nodes.map((node) => {
-    const partition = node.partition ? partitionById.get(node.partition)! : undefined;
+    const partitionId = membership.get(node.entity);
+    const partition = partitionId === undefined ? undefined : partitionById.get(partitionId)!;
     const box = partition ? local.get(node.entity)! : placement.get(`node:${node.entity}`)!;
     return {
       ...measured.get(node.entity)!,
@@ -107,7 +115,10 @@ export function layoutArchitecture(
   }
   for (let i = 0; i < nodes.length; i++) {
     for (let j = i + 1; j < nodes.length; j++) {
-      if (chart.nodes[i].partition === chart.nodes[j].partition && overlaps(nodes[i], nodes[j], 12))
+      if (
+        membership.get(nodes[i].id) === membership.get(nodes[j].id) &&
+        overlaps(nodes[i], nodes[j], 12)
+      )
         fail(
           "NODE_OVERLAP",
           `diagram.${chart.id}.nodes.${nodes[j].id}.position`,
