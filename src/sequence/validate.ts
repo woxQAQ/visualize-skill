@@ -1,5 +1,5 @@
 import type { AddDiagnostic } from "../diagnostics.ts";
-import type { Message, SequenceChart } from "./index.ts";
+import type { Message, SequenceChart } from "./model.ts";
 
 export function validateSequence(
   chart: SequenceChart,

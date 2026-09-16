@@ -1,4 +1,5 @@
-import type { Position, Rect } from "./model.ts";
+import type { Position } from "../types.ts";
+import type { Rect } from "./model.ts";
 import { overlaps } from "./routing.ts";
 
 interface Link {

@@ -1,4 +1,4 @@
-import type { LaneLayout, SwimlaneChart, SwimlaneScene } from "./index.ts";
+import type { LaneLayout, SwimlaneChart, SwimlaneScene } from "./model.ts";
 import type { LayoutContext } from "../shared/model.ts";
 import { wrap, measure } from "../design.ts";
 import { fail } from "../diagnostics.ts";

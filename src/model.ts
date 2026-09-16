@@ -1,7 +1,7 @@
-import type { ArchitectureChart, ArchitectureScene } from "./architecture/index.ts";
-import type { SequenceChart, SequenceScene } from "./sequence/index.ts";
-import type { SwimlaneChart, SwimlaneScene } from "./swimlane/index.ts";
-import type { Entity, Role } from "./shared/model.ts";
+import type { ArchitectureChart, ArchitectureScene } from "./architecture/model.ts";
+import type { SequenceChart, SequenceScene } from "./sequence/model.ts";
+import type { SwimlaneChart, SwimlaneScene } from "./swimlane/model.ts";
+import type { Entity, Role } from "./types.ts";
 
 /** Semantic chart union; entity and role references are identifier strings. */
 export type Chart = ArchitectureChart | SequenceChart | SwimlaneChart;

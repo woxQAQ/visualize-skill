@@ -1,5 +1,6 @@
+import type { Message, SequenceChart } from "./sequence/model.ts";
+import type { ArchitectureChart } from "./architecture/model.ts";
 import type {
-  ArchitectureChart,
   ArchitectureNode,
   ArchitectureOptions,
   ArchitecturePartition,
@@ -15,19 +16,18 @@ import type {
   RelationVariant,
   RelationSide,
   Tag,
-} from "./shared/model.ts";
+} from "./types.ts";
 import type {
-  SequenceChart,
   SequenceParticipant,
   SequencePartition,
   SequenceOptions,
-  Message,
   MessageVariant,
   MessageKind,
 } from "./sequence/index.ts";
-import type { SwimlaneChart, SwimlaneOptions } from "./swimlane/index.ts";
+import type { SwimlaneChart } from "./swimlane/model.ts";
+import type { SwimlaneOptions } from "./swimlane/index.ts";
 import { messageKinds, messageVariants } from "./sequence/index.ts";
-import { relationSides, relationVariants } from "./shared/model.ts";
+import { relationSides, relationVariants } from "./types.ts";
 import { array, fail, fields, freeze, identifier, string } from "./diagnostics.ts";
 
 const diagrams = new WeakSet<object>();
@@ -163,7 +163,7 @@ function architectureNodes(nodes: unknown, path: string): ArchitectureNode<Entit
   });
 }
 
-function architecturePartitions(values: unknown, path: string): ArchitecturePartition[] {
+function architecturePartitions(values: unknown, path: string): ArchitecturePartition<string>[] {
   return array(values, path, { empty: true }).map((value, i) => {
     const p = `${path}[${i}]`;
     fields(value, ["id", "label", "nodes", "position"], p);

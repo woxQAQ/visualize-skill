@@ -5,7 +5,7 @@ import type {
   SequenceScene,
   SequencePartitionLayout,
   Message,
-} from "./index.ts";
+} from "./model.ts";
 import type { LayoutContext, Point } from "../shared/model.ts";
 
 interface Execution {

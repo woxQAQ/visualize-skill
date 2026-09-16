@@ -1,4 +1,5 @@
-import type { LayoutContext, RelationVariant, TextLayout } from "./shared/model.ts";
+import type { RelationVariant } from "./types.ts";
+import type { LayoutContext, TextLayout } from "./shared/model.ts";
 import type { MessageKind, MessageVariant } from "./sequence/index.ts";
 import type { SemanticDiagram } from "./model.ts";
 import { freeze, fail } from "./diagnostics.ts";

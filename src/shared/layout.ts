@@ -1,10 +1,11 @@
-import type { LayoutContext, NodeLayout, Participant, Point } from "./model.ts";
+import type { Participant } from "../types.ts";
+import type { LayoutContext, NodeLayout, Point } from "./model.ts";
 import type { Scene } from "../model.ts";
 import { theme, wrap, measure } from "../design.ts";
 import { fail } from "../diagnostics.ts";
 
 export function nodeBox(
-  node: Participant,
+  node: Participant<string, string>,
   ctx: LayoutContext,
   x: number,
   y: number,

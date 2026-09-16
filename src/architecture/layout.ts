@@ -1,4 +1,4 @@
-import type { ArchitectureChart, ArchitectureScene, ArchitecturePartitionLayout } from "./index.ts";
+import type { ArchitectureChart, ArchitectureScene, ArchitecturePartitionLayout } from "./model.ts";
 import type { LayoutContext, NodeLayout, Rect } from "../shared/model.ts";
 import { fail } from "../diagnostics.ts";
 import { wrap, measure } from "../design.ts";

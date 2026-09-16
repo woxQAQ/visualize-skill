@@ -1,13 +1,5 @@
-import type {
-  EdgeLayout,
-  NodeLayout,
-  Point,
-  Position,
-  Rect,
-  Relation,
-  RelationSide,
-  TextLayout,
-} from "./model.ts";
+import type { Position, RelationSide } from "../types.ts";
+import type { EdgeLayout, NodeLayout, Point, Rect, Relation, TextLayout } from "./model.ts";
 import { fail } from "../diagnostics.ts";
 import { measure, wrap } from "../design.ts";
 import { path } from "./layout.ts";
