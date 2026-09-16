@@ -28,7 +28,7 @@ export const relationStyles: Readonly<
     { ink: string; width: number; dash: string; weight: number; arrow: "filled" | "open" }
   >
 > = freeze({
-  default: { ink: theme.muted, width: 1.5, dash: "none", weight: 400, arrow: "filled" },
+  default: { ink: theme.ink, width: 1.5, dash: "none", weight: 400, arrow: "filled" },
   emphasis: { ink: "var(--viz-series-5)", width: 2.5, dash: "none", weight: 600, arrow: "filled" },
   security: { ink: "var(--red)", width: 1.5, dash: "none", weight: 400, arrow: "filled" },
   dashed: { ink: "var(--viz-series-1)", width: 1.5, dash: "5 4", weight: 400, arrow: "filled" },
