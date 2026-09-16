@@ -56,14 +56,18 @@ export function layoutSequence(chart: SequenceChart, ctx: LayoutContext): Sequen
     .flatMap((partition) => [partition.x, partition.x + partition.width])
     .sort((a, b) => a - b);
 
-  function labelSpace(x: number, width: number): { x: number; width: number } {
+  function labelSpace(
+    x: number,
+    width: number,
+    obstacles: [number, number][],
+  ): { x: number; width: number } {
     const end = x + width;
     const spaces: { x: number; width: number }[] = [];
     let start = x;
-    for (const border of borders) {
-      if (border + 5 <= start || border - 5 >= end) continue;
-      if (border - 5 > start) spaces.push({ x: start, width: border - 5 - start });
-      start = Math.max(start, border + 5);
+    for (const [left, right] of obstacles.sort((a, b) => a[0] - b[0])) {
+      if (right <= start || left >= end) continue;
+      if (left > start) spaces.push({ x: start, width: left - start });
+      start = Math.max(start, right);
     }
     if (start < end) spaces.push({ x: start, width: end - start });
     return spaces.sort((a, b) => b.width - a.width)[0] ?? { x, width: 0 };
@@ -106,20 +110,40 @@ export function layoutSequence(chart: SequenceChart, ctx: LayoutContext): Sequen
     const direction = centers.get(message.to)! >= centers.get(message.from)! ? 1 : -1;
     const participantIndex = nodes.findIndex((node) => node.id === message.from);
     const selfLabelOnLeft = self && participantIndex === nodes.length - 1 && participantIndex > 0;
-    const selfLabelWidth = selfLabelOnLeft
-      ? centers.get(message.from)! - centers.get(nodes[participantIndex - 1].id)! - 48
-      : participantIndex < nodes.length - 1
-        ? centers.get(nodes[participantIndex + 1].id)! - centers.get(message.from)! - 64
-        : 120;
-    const labelWidth = self
-      ? Math.min(120, selfLabelWidth)
-      : Math.abs(centers.get(message.to)! - centers.get(message.from)!) - 42;
-    const labelPosition = labelSpace(
-      self
-        ? centers.get(message.from)! + (selfLabelOnLeft ? -labelWidth - 24 : 40)
-        : Math.min(centers.get(message.from)!, centers.get(message.to)!) + 12,
-      labelWidth,
-    );
+    // Reserve text clearance around lifelines and the full nested execution width.
+    // The label background extends another 3 px beyond the measured text.
+    const clearance = 20;
+    const obstacles: [number, number][] = [
+      ...borders.map((border): [number, number] => [border - 12, border + 12]),
+      ...[...centers.values()].map((center): [number, number] => [
+        center - clearance,
+        center + clearance,
+      ]),
+      ...stack.map(({ activation }): [number, number] => [
+        activation.x - clearance,
+        activation.x + activation.width + clearance,
+      ]),
+    ];
+    if (message.kind === "sync") {
+      const depth = stack.filter((frame) => frame.call.to === message.to).length;
+      const left = centers.get(message.to)! - 7 + depth * 7;
+      obstacles.push([left - clearance, left + 14 + clearance]);
+    }
+    const fromCenter = centers.get(message.from)!;
+    const toCenter = centers.get(message.to)!;
+    const labelStart = self
+      ? selfLabelOnLeft
+        ? centers.get(nodes[participantIndex - 1].id)!
+        : fromCenter
+      : Math.min(fromCenter, toCenter);
+    const labelEnd = self
+      ? selfLabelOnLeft
+        ? fromCenter
+        : participantIndex < nodes.length - 1
+          ? centers.get(nodes[participantIndex + 1].id)!
+          : fromCenter + 160
+      : Math.max(fromCenter, toCenter);
+    const labelPosition = labelSpace(labelStart, labelEnd - labelStart, obstacles);
     if (labelPosition.width < 12) {
       fail(
         "SEQUENCE_LABEL_SPACE",
@@ -130,7 +154,7 @@ export function layoutSequence(chart: SequenceChart, ctx: LayoutContext): Sequen
     }
     const label = wrap(
       `${++count}. ${message.label}`,
-      labelPosition.width,
+      self ? Math.min(120, labelPosition.width) : labelPosition.width,
       `diagram.${chart.id}.${message.id}.label`,
       6,
       12,
@@ -168,9 +192,11 @@ export function layoutSequence(chart: SequenceChart, ctx: LayoutContext): Sequen
       points,
       path: path(points),
       label,
-      labelX: selfLabelOnLeft
-        ? labelPosition.x + labelPosition.width - label.width
-        : labelPosition.x,
+      labelX: self
+        ? selfLabelOnLeft
+          ? labelPosition.x + labelPosition.width - label.width
+          : labelPosition.x
+        : labelPosition.x + (labelPosition.width - label.width) / 2,
       labelY: y,
       arrivalY,
       lineY,

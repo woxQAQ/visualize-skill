@@ -41,22 +41,22 @@ export const relationStyles: Readonly<
   return: { ink: theme.muted, width: 1.5, dash: "5 4", weight: 400, arrow: "open" },
 });
 
-/** Stroke and label emphasis, independent of message behavior. */
+/** Stroke and label emphasis; an explicit ink overrides the kind's default color. */
 export const messageStyles: Readonly<
-  Record<MessageVariant, { ink: string; width: number; weight: number }>
+  Record<MessageVariant, { ink?: string; width: number; weight: number }>
 > = freeze({
-  default: { ink: theme.ink, width: 1.5, weight: 400 },
+  default: { width: 1.5, weight: 400 },
   emphasis: { ink: "var(--viz-series-5)", width: 2.5, weight: 600 },
   security: { ink: "var(--red)", width: 1.5, weight: 400 },
 });
 
-/** Line and arrow shapes convey behavior even without color. */
-export const messageShapes: Readonly<
-  Record<MessageKind, { dash: string; arrow: "filled" | "open" }>
+/** Kind colors distinguish messages; line and arrow shapes also convey behavior. */
+export const messageKindStyles: Readonly<
+  Record<MessageKind, { ink: string; dash: string; arrow: "filled" | "open" }>
 > = freeze({
-  sync: { dash: "none", arrow: "filled" },
-  async: { dash: "none", arrow: "open" },
-  reply: { dash: "5 4", arrow: "open" },
+  sync: { ink: "var(--viz-series-1)", dash: "none", arrow: "filled" },
+  async: { ink: "var(--viz-series-3)", dash: "none", arrow: "open" },
+  reply: { ink: "var(--viz-series-2)", dash: "5 4", arrow: "open" },
 });
 
 const segmenter = new Intl.Segmenter("en", { granularity: "grapheme" });

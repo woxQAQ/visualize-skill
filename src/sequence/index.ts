@@ -30,7 +30,7 @@ export interface SequencePartition {
   readonly label: string;
 }
 
-/** Message behaviors controlling response validation, execution bars and arrow shape. */
+/** Message behaviors controlling response validation, execution bars, default color and arrow shape. */
 export const messageKinds = ["sync", "async", "reply"] as const;
 
 /** sync waits for a reply; async does not wait; reply responds to an earlier message. */
@@ -93,7 +93,7 @@ export interface MessageInput {
    * earlier message. Awaited operations are sync even when implemented with async functions.
    */
   readonly kind?: MessageKind;
-  /** Defaults to default. Controls visual emphasis independently of kind. */
+  /** Defaults to default, which uses the kind's color. emphasis and security override that color. */
   readonly variant?: MessageVariant;
   /**
    * Required for kind reply and forbidden for every other kind: ID of an earlier sync or async
@@ -167,7 +167,7 @@ export interface SequenceOptions {
  * event number.
  */
 export interface SequenceEdgeLayout extends ConnectionLayout {
-  /** Original message behavior used to select line dashes and arrow shape. */
+  /** Original message behavior used to select default color, line dashes and arrow shape. */
   kind: MessageKind;
   /** Original visual emphasis used to select color, stroke width and label weight. */
   variant: MessageVariant;

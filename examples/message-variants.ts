@@ -58,6 +58,7 @@ const messages = sequence({
       kind: "reply",
       replyTo: "request",
     },
+    { id: "event", from: service, to: audit, label: "发布事件", kind: "async" },
     {
       id: "notify",
       from: client,
