@@ -9,7 +9,8 @@ import type {
 } from "../types.ts";
 
 /**
- * Architecture entity with optional local placement.
+ * A component at the diagram's chosen abstraction level, with optional local placement.
+ * Select nodes to explain responsibilities and dependencies, rather than enumerate execution steps.
  * Inherited fields follow Participant.
  */
 export interface ArchitectureNode<E = EntityInput, R = Role> extends Participant<E, R> {
@@ -20,7 +21,11 @@ export interface ArchitectureNode<E = EntityInput, R = Role> extends Participant
   readonly position?: Position;
 }
 
-/** A positioned container for related architecture nodes, not an entity or a relation endpoint. */
+/**
+ * A shared responsibility, ownership or deployment boundary containing related components.
+ * Use partitions when the boundary explains the architecture, not merely to decorate a group.
+ * A partition is not an entity or a relation endpoint.
+ */
 export interface ArchitecturePartition<E = EntityRef> {
   /** Unique within the chart's partitions. Use a stable identifier matching [a-z][a-z0-9-]*. */
   readonly id: string;
@@ -40,8 +45,11 @@ export interface ArchitecturePartition<E = EntityRef> {
 }
 
 /**
- * Input to architecture(); use the SDK constructor to normalize defaults and register a renderable
- * diagram.
+ * A structural view of responsibilities, boundaries and component dependencies, not a timeline.
+ * Automatic placement stacks dependency levels top to bottom, within partitions and at the root.
+ * This is an initial arrangement, not a recommended reading direction: use position for horizontal
+ * or mixed layouts when they better express peer responsibilities or fit the display width.
+ * Use the SDK constructor to normalize defaults and register a renderable diagram.
  */
 export interface ArchitectureOptions {
   /**
@@ -63,7 +71,8 @@ export interface ArchitectureOptions {
   readonly partitions?: readonly ArchitecturePartition[];
   /**
    * Up to 16 directed relations with unique IDs and endpoints present in nodes; an empty array is
-   * allowed. Endpoints accept entity definitions or IDs.
+   * allowed. Endpoints accept entity definitions or IDs. Label dependencies with the capability or
+   * contract being used; use sequence or swimlane diagrams for execution order.
    */
   readonly relations: readonly RelationInput[];
 }
