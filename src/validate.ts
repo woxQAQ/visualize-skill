@@ -80,33 +80,24 @@ export function validate(doc: SemanticDiagram): SemanticDiagram {
     }
   }
   if (chart.kind === "architecture") {
-    const membership = new Set<string>();
+    const partitionIds = new Set(chart.partitions.map((partition) => partition.id));
     for (const partition of chart.partitions) {
-      const p = `${path}.partitions.${partition.id}.nodes`;
-      if (!partition.nodes.length)
+      if (!chart.nodes.some((node) => node.partition === partition.id))
         add(
           "EMPTY_PARTITION",
-          p,
+          `${path}.partitions.${partition.id}`,
           "分区没有包含节点。",
-          "在 partition.nodes 中声明成员，或移除空分区。",
+          "为节点声明 partition，或移除空分区。",
         );
-      partition.nodes.forEach((id, index) => {
-        if (!ids.has(id))
-          add(
-            "UNKNOWN_PARTITION_NODE",
-            `${p}[${index}]`,
-            `分区成员 ${id} 未出现在当前图表中。`,
-            "先在图表 nodes 中声明节点，再通过实体或 ID 引用。",
-          );
-        if (membership.has(id))
-          add(
-            "DUPLICATE_PARTITION_NODE",
-            `${p}[${index}]`,
-            `节点 ${id} 在分区成员中重复出现。`,
-            "每个节点最多属于一个分区，且只能在成员列表中出现一次。",
-          );
-        membership.add(id);
-      });
+    }
+    for (const node of chart.nodes) {
+      if (node.partition && !partitionIds.has(node.partition))
+        add(
+          "UNKNOWN_PARTITION",
+          `${path}.${node.entity}.partition`,
+          `分区 ${node.partition} 不在图中。`,
+          "在 partitions 中声明该分区。实体不能充当分区。",
+        );
     }
   }
   if (chart.kind === "sequence") {

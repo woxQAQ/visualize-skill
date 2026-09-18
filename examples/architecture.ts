@@ -18,13 +18,7 @@ import {
 const overview = architecture({
   id: "system-architecture",
   meta: { title: "系统架构", subtitle: "声明入口与生成分区" },
-  partitions: [
-    {
-      id: "generation",
-      label: "生成过程",
-      nodes: [coordinator, validator, layout, renderer],
-    },
-  ],
+  partitions: [{ id: "generation", label: "生成过程" }],
   nodes: [
     { entity: skill, role: guidance },
     {
@@ -34,18 +28,22 @@ const overview = architecture({
     {
       entity: coordinator,
       role: presentation,
+      partition: "generation",
     },
     {
       entity: validator,
       role: checking,
+      partition: "generation",
     },
     {
       entity: layout,
       role: presentation,
+      partition: "generation",
     },
     {
       entity: renderer,
       role: presentation,
+      partition: "generation",
     },
     {
       entity: output,
@@ -53,12 +51,12 @@ const overview = architecture({
     },
   ],
   relations: [
-    { id: "guides", from: skill, to: sdk, label: "指导声明" },
-    { id: "declares", from: sdk, to: coordinator, label: "提交图表声明" },
-    { id: "checks", from: coordinator, to: validator, label: "检查语义" },
-    { id: "validates", from: validator, to: layout, label: "合法图表" },
-    { id: "positions", from: layout, to: renderer, label: "几何结果" },
-    { id: "renders", from: renderer, to: output, label: "图形片段" },
+    { id: "guides", from: "skill", to: "sdk", label: "指导声明" },
+    { id: "declares", from: "sdk", to: "coordinator", label: "提交图表声明" },
+    { id: "checks", from: "coordinator", to: "validator", label: "检查语义" },
+    { id: "validates", from: "validator", to: "layout", label: "合法图表" },
+    { id: "positions", from: "layout", to: "renderer", label: "几何结果" },
+    { id: "renders", from: "renderer", to: "output", label: "图形片段" },
   ],
 });
 

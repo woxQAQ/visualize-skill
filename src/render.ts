@@ -5,9 +5,11 @@ import { layoutSequence } from "./sequence/layout.ts";
 import { layoutSwimlane } from "./swimlane/layout.ts";
 import { validate } from "./validate.ts";
 import { semanticDiagram } from "./sdk.ts";
+import { defaultRole } from "./types.ts";
 import { escape } from "./markup.ts";
 import { renderSvg } from "./render-svg.ts";
 import { interactionScript, pageStylesheet, renderTemplate, stylesheet } from "./templates.ts";
+import { computeWarnings } from "./warnings.ts";
 
 function entityDetails(semantic: SemanticDiagram) {
   const { chart } = semantic;
@@ -22,7 +24,10 @@ function entityDetails(semantic: SemanticDiagram) {
       )!;
       const partition =
         chart.kind === "architecture"
-          ? chart.partitions.find((partition) => partition.nodes.includes(entity.id))
+          ? chart.partitions.find(
+              (partition) =>
+                partition.id === chart.nodes.find((node) => node.entity === entity.id)?.partition,
+            )
           : chart.kind === "sequence"
             ? chart.partitions.find(
                 (partition) =>
@@ -48,11 +53,13 @@ function entityDetails(semantic: SemanticDiagram) {
           return `<tr><td>${self ? "内部" : outgoing ? "发出" : "接收"}</td><td>${self ? escape(entity.label) : link(outgoing ? relation.to : relation.from)}</td><td>${escape(relation.label)}</td></tr>`;
         })
         .join("");
+      const roleLabel = roles.get(node.role ?? defaultRole.id);
       return renderTemplate("entity", {
         id: entity.id,
         label: entity.label,
         description: entity.description ? `<p>${escape(entity.description)}</p>` : "",
-        role: roles.get(node.role)!,
+        role:
+          roleLabel === undefined ? "" : `<div><dt>角色</dt><dd>${escape(roleLabel)}</dd></div>`,
         membership: partition
           ? `<div><dt>所属分区</dt><dd>${escape(partition.label)}</dd></div>`
           : lane
@@ -81,7 +88,7 @@ export function compile(diagram: Diagram) {
       : chart.kind === "sequence"
         ? layoutSequence(chart, ctx)
         : layoutSwimlane(chart, ctx);
-  return { semantic, scene };
+  return { semantic, scene, warnings: computeWarnings(scene) };
 }
 
 export function render(diagram: Diagram) {

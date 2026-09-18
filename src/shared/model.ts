@@ -61,6 +61,12 @@ export interface NodeLayout extends Rect {
    * summaries.
    */
   detail: TextLayout | null;
+  /**
+   * Canvas coordinate of the local origin that a declared position is relative to; set only by
+   * charts accepting node positions, so inspection can convert between local and absolute
+   * coordinates.
+   */
+  origin?: Point;
 }
 
 /**

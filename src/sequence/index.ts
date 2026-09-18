@@ -1,9 +1,9 @@
-import type { ChartMeta, EntityInput, Role, EntityRef, Participant } from "../types.ts";
+import type { ChartMeta, EntityInput, Role, Appearance } from "../types.ts";
 
 /**
  * Entity header and lifeline in a sequence diagram; array order determines horizontal placement.
  */
-export interface SequenceParticipant<E = EntityInput, R = Role> extends Participant<E, R> {
+export interface SequenceParticipant<E = EntityInput, R = Role> extends Appearance<E, R> {
   /**
    * Optional ID in this chart's partitions; all participants using the same ID must be contiguous.
    */
@@ -39,15 +39,14 @@ export interface MessageInput {
   /** Unique within the chart's messages. Use a stable identifier matching [a-z][a-z0-9-]*. */
   readonly id: string;
   /**
-   * Sender entity definition or ID; its ID must already appear in participants. A nested
-   * synchronous call must originate from the currently executing receiver.
+   * Sender entity ID; it must already appear in participants. A nested synchronous call must
+   * originate from the currently executing receiver.
    */
-  readonly from: EntityRef;
+  readonly from: string;
   /**
-   * Receiver entity definition or ID; its ID must already appear in participants. Self-messages
-   * are allowed.
+   * Receiver entity ID; it must already appear in participants. Self-messages are allowed.
    */
-  readonly to: EntityRef;
+  readonly to: string;
   /**
    * Nonempty event description without a manual sequence number; numbering is generated during
    * layout.

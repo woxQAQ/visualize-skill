@@ -50,11 +50,11 @@ const expense = swimlane({
     },
   ],
   relations: [
-    { id: "request-review", from: submit, to: approve, label: "提交审核" },
-    { id: "request-changes", from: approve, to: revise, label: "材料不全" },
-    { id: "resubmit", from: revise, to: approve, label: "重新提交" },
-    { id: "approved", from: approve, to: pay, label: "审核通过" },
-    { id: "paid", from: pay, to: archive, label: "付款完成" },
+    { id: "request-review", from: "submit", to: "approve", label: "提交审核" },
+    { id: "request-changes", from: "approve", to: "revise", label: "材料不全" },
+    { id: "resubmit", from: "revise", to: "approve", label: "重新提交" },
+    { id: "approved", from: "approve", to: "pay", label: "审核通过" },
+    { id: "paid", from: "pay", to: "archive", label: "付款完成" },
   ],
 });
 

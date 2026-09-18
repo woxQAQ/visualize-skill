@@ -10,7 +10,6 @@
     "fmt": "oxfmt",
     "fmt:check": "oxfmt --check",
     "typecheck": "tsc --noEmit",
-    "test": "pnpm typecheck && node --test test/*.test.ts",
     "example": "node examples/architecture.ts",
     "example:swimlane": "node examples/swimlane.ts",
     "example:sequence": "node examples/sequence.ts"

@@ -3,7 +3,7 @@ import type {
   EntityInput,
   Role,
   Position,
-  Participant,
+  Appearance,
   RelationInput,
 } from "../types.ts";
 
@@ -23,9 +23,9 @@ export interface Lane {
 
 /**
  * Automatically placed activity belonging to exactly one lane; inherited fields follow
- * Participant.
+ * Appearance.
  */
-export interface SwimlaneNode<E = EntityInput, R = Role> extends Participant<E, R> {
+export interface SwimlaneNode<E = EntityInput, R = Role> extends Appearance<E, R> {
   /**
    * Required ID in this chart's lanes; a lane is a container, not an entity or relation endpoint.
    */

@@ -15,10 +15,11 @@ export function layoutArchitecture(
 ): ArchitectureScene {
   const measured = new Map(chart.nodes.map((node) => [node.entity, nodeBox(node, ctx, 0, 0)]));
   const membership = new Map(
-    chart.partitions.flatMap((partition) =>
-      partition.nodes.map((id) => [id, partition.id] as const),
+    chart.nodes.flatMap((node) =>
+      node.partition === undefined ? [] : [[node.entity, node.partition] as const],
     ),
   );
+  const horizontal = chart.direction === "horizontal";
   const local = new Map<string, Rect>();
   const partitions: ArchitecturePartitionLayout[] = chart.partitions.map((partition) => {
     const members = chart.nodes.filter((node) => membership.get(node.entity) === partition.id);
@@ -28,7 +29,7 @@ export function layoutArchitecture(
         members.map((node) => node.entity),
         chart.relations,
       ),
-      { maxWidth: 1000 },
+      { horizontal, maxWidth: 1000 },
     );
     for (const [id, box] of boxes) local.set(id, box);
     const width =
@@ -84,6 +85,7 @@ export function layoutArchitecture(
       roots.map((box) => box.id),
       rootLinks,
     ),
+    { horizontal },
   );
   for (const partition of partitions) {
     const box = placement.get(`partition:${partition.id}`)!;
@@ -95,10 +97,14 @@ export function layoutArchitecture(
     const partitionId = membership.get(node.entity);
     const partition = partitionId === undefined ? undefined : partitionById.get(partitionId)!;
     const box = partition ? local.get(node.entity)! : placement.get(`node:${node.entity}`)!;
+    const origin: [number, number] = partition
+      ? [partition.x + padding, partition.y + partition.headerHeight + padding]
+      : [margin, margin];
     return {
       ...measured.get(node.entity)!,
-      x: (partition ? partition.x + padding : margin) + box.x,
-      y: (partition ? partition.y + partition.headerHeight + padding : margin) + box.y,
+      origin,
+      x: origin[0] + box.x,
+      y: origin[1] + box.y,
     };
   });
   const regions = [...placement.entries()];

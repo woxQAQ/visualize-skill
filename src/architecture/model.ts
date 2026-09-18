@@ -1,5 +1,5 @@
 import type { ChartMeta } from "../types.ts";
-import type { ArchitectureNode, ArchitecturePartition } from "./index.ts";
+import type { ArchitectureNode, ArchitecturePartition, ArchitectureDirection } from "./index.ts";
 import type { Rect, TextLayout, NodeLayout, EdgeLayout, Relation } from "../shared/model.ts";
 
 /**
@@ -16,16 +16,18 @@ export interface ArchitectureChart<E = string, R = string> {
   readonly id: string;
   /** Shared title and optional subtitle; plain text, not markup. */
   readonly meta: ChartMeta;
+  /** Automatic layering direction resolved by the SDK; always present after normalization. */
+  readonly direction: ArchitectureDirection;
   /**
-   * Declare 1 to 12 nodes, with each entity appearing exactly once.
-   * Optional positions express intended placement or refine automatic layout.
+   * Declare 1 to 12 nodes, with each entity appearing exactly once; nodes reference their
+   * partition by ID. Optional positions express intended placement or refine automatic layout.
    */
   readonly nodes: readonly ArchitectureNode<E, R>[];
   /**
-   * Groups declaring their members through partition.nodes; unlisted nodes remain in chart
-   * content. Empty when no groups are declared.
+   * Groups referenced by node.partition; ungrouped nodes remain in chart content.
+   * Empty when no groups are declared.
    */
-  readonly partitions: readonly ArchitecturePartition<string>[];
+  readonly partitions: readonly ArchitecturePartition[];
   /**
    * Up to 16 directed relations with unique IDs and endpoints present in nodes; an empty array is
    * allowed.

@@ -1,11 +1,11 @@
-import type { Participant } from "../types.ts";
+import { defaultRole, type Appearance } from "../types.ts";
 import type { LayoutContext, NodeLayout, Point } from "./model.ts";
 import type { Scene } from "../model.ts";
 import { theme, wrap, measure } from "../design.ts";
 import { fail } from "../diagnostics.ts";
 
 export function nodeBox(
-  node: Participant<string, string>,
+  node: Appearance<string, string>,
   ctx: LayoutContext,
   x: number,
   y: number,
@@ -26,7 +26,17 @@ export function nodeBox(
       : null;
   const contentHeight = 28 + title.height + (detail ? detail.height + 6 : 0);
   const height = Math.max(56, contentHeight);
-  return { id: entity.id, role: node.role, x, y, width, height, contentHeight, title, detail };
+  return {
+    id: entity.id,
+    role: node.role ?? defaultRole.id,
+    x,
+    y,
+    width,
+    height,
+    contentHeight,
+    title,
+    detail,
+  };
 }
 
 export function finish<T extends Scene>(scene: T): T {

@@ -68,6 +68,12 @@ export interface Role {
 }
 
 /**
+ * Role referenced by appearances that omit one. It takes a neutral color, no legend entry and no
+ * palette slot; declaring a role with the same ID overrides the neutral appearance.
+ */
+export const defaultRole: Role = { id: "default", label: "默认" };
+
+/**
  * Declared local coordinates in SVG canvas units; the containing node or partition defines the
  * origin.
  */
@@ -79,23 +85,19 @@ export interface Position {
 }
 
 /**
- * Entity reference resolved by ID for relation endpoints or partition members; passing an object
- * does not add it to the chart nodes or participants.
+ * One entity appearance in a chart. The optional role controls this appearance's legend category
+ * and color.
  */
-export type EntityRef = string | EntityInput;
-
-/**
- * One entity appearance in a chart, with its own responsibility and color category.
- */
-export interface Participant<E = EntityInput, R = Role> {
+export interface Appearance<E = EntityInput, R = Role> {
   /**
    * Entity definition; an entity may appear only once per chart.
    */
   readonly entity: E;
   /**
-   * Role definition controlling this appearance's legend category and color.
+   * Role definition controlling this appearance's legend category and color. Omit for the neutral
+   * default role, which appears neither in the legend nor in the palette.
    */
-  readonly role: R;
+  readonly role?: R;
 }
 
 /** Allowed visual presets for architecture and swimlane relations; validated by the SDK. */
@@ -128,12 +130,11 @@ export interface RelationInput {
   /** Unique within the chart's relations. Use a stable identifier matching [a-z][a-z0-9-]*. */
   readonly id: string;
   /**
-   * Source entity definition or ID; its ID must appear in chart.nodes. Partitions and lanes
-   * cannot be endpoints.
+   * Source entity ID; its ID must appear in chart.nodes. Partitions and lanes cannot be endpoints.
    */
-  readonly from: EntityRef;
-  /** Target entity definition or ID already in chart.nodes; equal endpoints create a self-loop. */
-  readonly to: EntityRef;
+  readonly from: string;
+  /** Target entity ID already in chart.nodes; equal endpoints create a self-loop. */
+  readonly to: string;
   /** Nonempty description rendered along the route; labels that cannot fit produce a diagnostic. */
   readonly label: string;
   /**

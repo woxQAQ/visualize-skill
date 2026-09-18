@@ -60,10 +60,12 @@ export function layoutSwimlane(chart: SwimlaneChart, ctx: LayoutContext): Swimla
   const nodes = chart.nodes.map((node) => {
     const lane = laneById.get(node.lane)!;
     const box = laneBoxes.get(node.lane)!.get(node.entity)!;
+    const origin: [number, number] = [lane.x + headerWidth + padding, lane.y + padding];
     return {
       ...measured.get(node.entity)!,
-      x: lane.x + headerWidth + padding + box.x,
-      y: lane.y + padding + box.y,
+      origin,
+      x: origin[0] + box.x,
+      y: origin[1] + box.y,
     };
   });
   for (let i = 0; i < nodes.length; i++) {

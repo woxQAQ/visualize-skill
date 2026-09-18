@@ -1,4 +1,5 @@
 import type { RelationVariant } from "./types.ts";
+import { defaultRole } from "./types.ts";
 import type { LayoutContext, TextLayout } from "./shared/model.ts";
 import type { MessageKind, MessageVariant } from "./sequence/index.ts";
 import type { SemanticDiagram } from "./model.ts";
@@ -138,9 +139,13 @@ export function wrap(
 }
 
 export function context(doc: SemanticDiagram): LayoutContext {
+  const colors = new Map(doc.roles.map((role, index) => [role.id, theme.palette[index]]));
+  // Appearances without a role share one neutral entry outside the palette and legend.
+  if (!colors.has(defaultRole.id))
+    colors.set(defaultRole.id, { ink: theme.muted, fill: theme.subtle });
   return {
     entities: new Map(doc.entities.map((entity) => [entity.id, entity])),
-    colors: new Map(doc.roles.map((role, index) => [role.id, theme.palette[index]])),
+    colors,
   };
 }
 // Retain node details for later use while keeping the current diagrams focused on relationships.

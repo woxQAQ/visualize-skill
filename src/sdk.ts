@@ -1,22 +1,25 @@
 import type { Message, SequenceChart } from "./sequence/model.ts";
 import type { ArchitectureChart } from "./architecture/model.ts";
 import type {
+  ArchitectureDirection,
   ArchitectureNode,
   ArchitectureOptions,
   ArchitecturePartition,
 } from "./architecture/index.ts";
+import { architectureDirections } from "./architecture/index.ts";
 import type { Diagram, SemanticDiagram } from "./model.ts";
 import type {
   ChartMeta,
   Entity,
   EntityInput,
-  Participant,
+  Appearance,
   Position,
   Role,
   RelationVariant,
   RelationSide,
   Tag,
 } from "./types.ts";
+import { defaultRole } from "./types.ts";
 import type {
   SequenceParticipant,
   SequencePartition,
@@ -28,7 +31,35 @@ import type { SwimlaneChart } from "./swimlane/model.ts";
 import type { SwimlaneOptions } from "./swimlane/index.ts";
 import { messageKinds, messageVariants } from "./sequence/index.ts";
 import { relationSides, relationVariants } from "./types.ts";
-import { array, fail, fields, freeze, identifier, string } from "./diagnostics.ts";
+import {
+  array,
+  DiagnosticError,
+  fail,
+  fields,
+  freeze,
+  identifier,
+  string,
+  type Diagnostic,
+} from "./diagnostics.ts";
+
+/**
+ * Run a normalization over an array, gathering every item's diagnostics into one thrown error
+ * instead of failing on the first item.
+ */
+function collect<T, R>(values: readonly T[], normalize: (value: T, index: number) => R): R[] {
+  const diagnostics: Diagnostic[] = [];
+  const results: R[] = [];
+  values.forEach((value, index) => {
+    try {
+      results.push(normalize(value, index));
+    } catch (error) {
+      if (!(error instanceof DiagnosticError)) throw error;
+      diagnostics.push(...error.diagnostics);
+    }
+  });
+  if (diagnostics.length) throw new DiagnosticError(diagnostics);
+  return results;
+}
 
 const diagrams = new WeakSet<object>();
 function diagram<T extends Diagram>(value: T): T {
@@ -70,7 +101,7 @@ function tags(input: unknown, path: string): readonly Tag[] {
       "保留有区分作用的分类标签，不用标签拼接正文。",
     );
   const seen = new Set();
-  return values.map((value, index) => {
+  return collect(values, (value, index) => {
     const p = `${path}[${index}]`;
     fields(value, ["id", "label"], p);
     const id = identifier(value.id, `${p}.id`);
@@ -81,38 +112,32 @@ function tags(input: unknown, path: string): readonly Tag[] {
 }
 
 export function entity(options: EntityInput): Entity {
-  return normalizeEntity(options);
+  return normalizeEntity(options, "entity");
 }
 
-function normalizeEntity(options: unknown): Entity {
-  fields(options, ["id", "label", "description", "tags"], "entity");
+function normalizeEntity(options: unknown, path: string): Entity {
+  fields(options, ["id", "label", "description", "tags"], path);
   const value = freeze({
-    id: identifier(options.id, "entity.id"),
-    label: string(options.label, "entity.label"),
+    id: identifier(options.id, `${path}.id`),
+    label: string(options.label, `${path}.label`),
     ...(options.description === undefined
       ? {}
-      : { description: shortText(options.description, `entity.${options.id}.description`, 80) }),
-    tags: tags(options.tags ?? [], `entity.${options.id}.tags`),
+      : { description: shortText(options.description, `${path}.description`, 80) }),
+    tags: tags(options.tags ?? [], `${path}.tags`),
   });
   return value;
 }
 
 export function role(options: Role): Role {
-  return normalizeRole(options);
+  return normalizeRole(options, "role");
 }
 
-function normalizeRole(options: unknown): Role {
-  fields(options, ["id", "label"], "role");
+function normalizeRole(options: unknown, path: string): Role {
+  fields(options, ["id", "label"], path);
   return freeze({
-    id: identifier(options.id, "role.id"),
-    label: string(options.label, "role.label"),
+    id: identifier(options.id, `${path}.id`),
+    label: string(options.label, `${path}.label`),
   });
-}
-
-function ref(value: unknown, path: string): string {
-  if (typeof value === "string") return identifier(value, path);
-  fields(value, ["id", "label", "description", "tags"], path);
-  return identifier(value.id, path);
 }
 
 function position(value: unknown, path: string): Position {
@@ -130,19 +155,22 @@ function position(value: unknown, path: string): Position {
   return { x: value.x as number, y: value.y as number };
 }
 
-function normalizeAppearance(node: Record<string, unknown>): Participant<Entity, Role> {
+function normalizeAppearance(
+  node: Record<string, unknown>,
+  path: string,
+): Appearance<Entity, Role> {
   return {
-    entity: normalizeEntity(node.entity),
-    role: normalizeRole(node.role),
+    entity: normalizeEntity(node.entity, `${path}.entity`),
+    ...(node.role === undefined ? {} : { role: normalizeRole(node.role, `${path}.role`) }),
   };
 }
 
 function participants(nodes: unknown, path: string): SequenceParticipant<Entity, Role>[] {
-  return array(nodes, path).map((node, i) => {
+  return collect(array(nodes, path), (node, i) => {
     const p = `${path}[${i}]`;
     fields(node, ["entity", "role", "partition"], p);
     return {
-      ...normalizeAppearance(node),
+      ...normalizeAppearance(node, p),
       ...(node.partition === undefined
         ? {}
         : { partition: identifier(node.partition, `${p}.partition`) }),
@@ -151,11 +179,14 @@ function participants(nodes: unknown, path: string): SequenceParticipant<Entity,
 }
 
 function architectureNodes(nodes: unknown, path: string): ArchitectureNode<Entity, Role>[] {
-  return array(nodes, path).map((node, i) => {
+  return collect(array(nodes, path), (node, i) => {
     const p = `${path}[${i}]`;
-    fields(node, ["entity", "role", "position"], p);
+    fields(node, ["entity", "role", "partition", "position"], p);
     return {
-      ...normalizeAppearance(node),
+      ...normalizeAppearance(node, p),
+      ...(node.partition === undefined
+        ? {}
+        : { partition: identifier(node.partition, `${p}.partition`) }),
       ...(node.position === undefined
         ? {}
         : { position: position(node.position, `${p}.position`) }),
@@ -163,16 +194,13 @@ function architectureNodes(nodes: unknown, path: string): ArchitectureNode<Entit
   });
 }
 
-function architecturePartitions(values: unknown, path: string): ArchitecturePartition<string>[] {
-  return array(values, path, { empty: true }).map((value, i) => {
+function architecturePartitions(values: unknown, path: string): ArchitecturePartition[] {
+  return collect(array(values, path, { empty: true }), (value, i) => {
     const p = `${path}[${i}]`;
-    fields(value, ["id", "label", "nodes", "position"], p);
+    fields(value, ["id", "label", "position"], p);
     return {
       id: identifier(value.id, `${p}.id`),
       label: shortText(value.label, `${p}.label`, 48),
-      nodes: array(value.nodes, `${p}.nodes`, { empty: true }).map((node, index) =>
-        ref(node, `${p}.nodes[${index}]`),
-      ),
       ...(value.position === undefined
         ? {}
         : { position: position(value.position, `${p}.position`) }),
@@ -181,7 +209,7 @@ function architecturePartitions(values: unknown, path: string): ArchitecturePart
 }
 
 function sequencePartitions(values: unknown, path: string): SequencePartition[] {
-  return array(values, path, { empty: true }).map((value, i) => {
+  return collect(array(values, path, { empty: true }), (value, i) => {
     const p = `${path}[${i}]`;
     fields(value, ["id", "label"], p);
     return {
@@ -216,13 +244,13 @@ function relationSide(value: unknown, path: string): RelationSide {
 }
 
 function edges(values: unknown, path: string) {
-  return array(values, path, { empty: true }).map((value, i) => {
+  return collect(array(values, path, { empty: true }), (value, i) => {
     const p = `${path}[${i}]`;
     fields(value, ["id", "from", "to", "label", "variant", "fromSide", "toSide"], p);
     const relation = {
       id: identifier(value.id, `${p}.id`),
-      from: ref(value.from, `${p}.from`),
-      to: ref(value.to, `${p}.to`),
+      from: identifier(value.from, `${p}.from`),
+      to: identifier(value.to, `${p}.to`),
       label: string(value.label, `${p}.label`),
       variant: relationVariant(value.variant, `${p}.variant`),
       ...(value.fromSide === undefined
@@ -268,7 +296,7 @@ function messageVariant(value: unknown, path: string): MessageVariant {
 }
 
 function messages(values: unknown, path: string): Message[] {
-  return array(values, path).map((value, i) => {
+  return collect(array(values, path), (value, i) => {
     const p = `${path}[${i}]`;
     fields(value, ["id", "from", "to", "label", "replyTo", "kind", "variant"], p);
     const kind = messageKind(value.kind, `${p}.kind`);
@@ -289,8 +317,8 @@ function messages(values: unknown, path: string): Message[] {
       );
     return {
       id: identifier(value.id, `${p}.id`),
-      from: ref(value.from, `${p}.from`),
-      to: ref(value.to, `${p}.to`),
+      from: identifier(value.from, `${p}.from`),
+      to: identifier(value.to, `${p}.to`),
       label: string(value.label, `${p}.label`),
       kind,
       variant,
@@ -301,12 +329,26 @@ function messages(values: unknown, path: string): Message[] {
   });
 }
 
+function architectureDirection(value: unknown, path: string): ArchitectureDirection {
+  if (value === undefined) return "vertical";
+  const direction = architectureDirections.find((direction) => direction === value);
+  if (direction === undefined)
+    fail(
+      "INVALID_DIRECTION",
+      path,
+      "布局方向必须是 vertical 或 horizontal。",
+      "层级依赖用 vertical，并列职责的横向比较用 horizontal。",
+    );
+  return direction;
+}
+
 export function architecture(options: ArchitectureOptions): ArchitectureChart<Entity, Role> {
-  fields(options, ["id", "meta", "nodes", "partitions", "relations"], "architecture");
+  fields(options, ["id", "meta", "nodes", "partitions", "relations", "direction"], "architecture");
   return diagram({
     kind: "architecture",
     id: identifier(options.id, "architecture.id"),
     meta: chartMeta(options.meta, "architecture.meta"),
+    direction: architectureDirection(options.direction, "architecture.direction"),
     nodes: architectureNodes(options.nodes, "architecture.nodes"),
     partitions: architecturePartitions(options.partitions ?? [], "architecture.partitions"),
     relations: edges(options.relations, "architecture.relations"),
@@ -331,7 +373,7 @@ export function swimlane(options: SwimlaneOptions): SwimlaneChart<Entity, Role> 
     kind: "swimlane",
     id: identifier(options.id, "swimlane.id"),
     meta: chartMeta(options.meta, "swimlane.meta"),
-    lanes: array(options.lanes, "swimlane.lanes").map((lane, i) => {
+    lanes: collect(array(options.lanes, "swimlane.lanes"), (lane, i) => {
       const p = `swimlane.lanes[${i}]`;
       fields(lane, ["id", "label"], p);
       return {
@@ -339,11 +381,11 @@ export function swimlane(options: SwimlaneOptions): SwimlaneChart<Entity, Role> 
         label: shortText(lane.label, `${p}.label`, 48),
       };
     }),
-    nodes: array(options.nodes, "swimlane.nodes").map((node, i) => {
+    nodes: collect(array(options.nodes, "swimlane.nodes"), (node, i) => {
       const p = `swimlane.nodes[${i}]`;
       fields(node, ["entity", "role", "lane", "position"], p);
       return {
-        ...normalizeAppearance(node),
+        ...normalizeAppearance(node, p),
         lane: identifier(node.lane, `${p}.lane`),
         ...(node.position === undefined
           ? {}
@@ -364,7 +406,7 @@ export function semanticDiagram(value: Diagram): SemanticDiagram {
     );
   const entities = new Map<string, Entity>();
   const roles = new Map<string, Role>();
-  const collect = <T extends { readonly id: string }>(
+  const register = <T extends { readonly id: string }>(
     registry: Map<string, T>,
     item: T,
     path: string,
@@ -378,10 +420,10 @@ export function semanticDiagram(value: Diagram): SemanticDiagram {
       );
     registry.set(item.id, item);
   };
-  const appearance = (node: Participant<Entity, Role>) => {
-    collect(entities, node.entity, `diagram.${node.entity.id}`);
-    collect(roles, node.role, `diagram.${node.entity.id}.role`);
-    return { entity: node.entity.id, role: node.role.id };
+  const appearance = (node: Appearance<Entity, Role>) => {
+    register(entities, node.entity, `diagram.${node.entity.id}`);
+    if (node.role) register(roles, node.role, `diagram.${node.entity.id}.role`);
+    return { entity: node.entity.id, role: node.role?.id ?? defaultRole.id };
   };
   const chart =
     value.kind === "sequence"
@@ -405,6 +447,7 @@ export function semanticDiagram(value: Diagram): SemanticDiagram {
             ...value,
             nodes: value.nodes.map((node) => ({
               ...appearance(node),
+              ...(node.partition === undefined ? {} : { partition: node.partition }),
               ...(node.position === undefined ? {} : { position: node.position }),
             })),
           };
