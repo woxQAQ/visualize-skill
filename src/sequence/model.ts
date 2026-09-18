@@ -31,13 +31,12 @@ export interface SequenceChart<E = string, R = string> {
   /** Shared title and optional subtitle; plain text, not markup. */
   readonly meta: ChartMeta;
   /**
-   * Declare 1 to 6 participants in left-to-right order, each entity once; keep partition members
-   * contiguous.
+   * Declare 1 to 6 participants in left-to-right order, each entity once.
    */
   readonly participants: readonly SequenceParticipant<E, R>[];
   /**
-   * Groups referenced by participant.partition; every group must contain a contiguous, nonempty
-   * run of participants. Empty when no groups are declared.
+   * Groups referenced by message.partition; every group must contain a contiguous, nonempty
+   * run of messages. Empty when no groups are declared.
    */
   readonly partitions: readonly SequencePartition[];
   /**
@@ -93,7 +92,7 @@ export interface SequenceScene {
   height: number;
   /** Participant header boxes in declaration order; node IDs are participant entity IDs. */
   nodes: NodeLayout[];
-  /** Group frames enclosing member headers and their full lifeline extent. */
+  /** Horizontal bands enclosing the vertical extent of each contiguous message group. */
   partitions: SequencePartitionLayout[];
   /** Message routes in execution order, with numbered labels. */
   edges: SequenceEdgeLayout[];
@@ -113,12 +112,12 @@ export interface SequenceScene {
 }
 
 /**
- * Computed frame for a contiguous participant group; extends from above the headers through the
- * message area.
+ * Computed band for a contiguous message group; spans the full canvas width and extends from
+ * above the first member's label through the last member's arrival line.
  */
 export interface SequencePartitionLayout extends Rect {
   /** Original SequencePartition.id used to identify the rendered group. */
   id: string;
-  /** Wrapped participant-group label. */
+  /** Wrapped message-group label. */
   title: TextLayout;
 }

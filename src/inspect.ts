@@ -108,9 +108,7 @@ export function inspect(diagram: Diagram): GeometryReport {
         )
       : chart.kind === "swimlane"
         ? chart.nodes.map((node) => [node.entity, node.lane] as const)
-        : chart.participants.flatMap((node) =>
-            node.partition === undefined ? [] : [[node.entity, node.partition] as const],
-          ),
+        : [],
   );
   const nodes: GeometryNode[] = scene.nodes.map((node) => {
     const position = declared.get(node.id);

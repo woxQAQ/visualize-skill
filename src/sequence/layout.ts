@@ -6,7 +6,7 @@ import type {
   SequencePartitionLayout,
   Message,
 } from "./model.ts";
-import type { LayoutContext, Point } from "../shared/model.ts";
+import type { LayoutContext, Point, TextLayout } from "../shared/model.ts";
 
 interface Execution {
   call: Message;
@@ -17,44 +17,18 @@ import { nodeBox, finish, path } from "../shared/layout.ts";
 import { fail } from "../diagnostics.ts";
 
 export function layoutSequence(chart: SequenceChart, ctx: LayoutContext): SequenceScene {
-  let nextX = chart.partitions.length ? 46 : 32;
+  let nextX = 32;
   const nodes = chart.participants.map((node) => {
     const box = nodeBox(node, ctx, nextX, 24, { description: false });
     nextX += box.width + 40;
     return box;
   });
-  const partitions: SequencePartitionLayout[] = chart.partitions.map((partition) => {
-    const members = nodes.filter(
-      (_, index) => chart.participants[index].partition === partition.id,
-    );
-    const first = members[0],
-      last = members.at(-1)!;
-    const width = last.x + last.width - first.x + 28;
-    return {
-      id: partition.id,
-      x: first.x - 14,
-      y: 24,
-      width,
-      height: 0,
-      title: wrap(
-        partition.label,
-        width - 48,
-        `diagram.${chart.id}.partitions.${partition.id}.label`,
-        2,
-      ),
-    };
-  });
-  const nodeY = partitions.length
-    ? 60 + Math.max(...partitions.map((partition) => partition.title.height))
-    : 24;
+  const nodeY = 24;
   const headerHeight = Math.max(...nodes.map((node) => node.height));
   for (const node of nodes) {
     node.y = nodeY;
     node.height = headerHeight;
   }
-  const borders = partitions
-    .flatMap((partition) => [partition.x, partition.x + partition.width])
-    .sort((a, b) => a - b);
 
   function labelSpace(
     x: number,
@@ -80,6 +54,41 @@ export function layoutSequence(chart: SequenceChart, ctx: LayoutContext): Sequen
   let y = nodeY + headerHeight + 32;
   let count = 0;
 
+  // Contiguous runs of messages sharing one partition ID; validation guarantees each declared
+  // partition appears as exactly one run.
+  interface Run {
+    id: string;
+    firstIndex: number;
+    lastIndex: number;
+    title: TextLayout;
+    top: number;
+    bottom: number;
+  }
+  const runs: Run[] = [];
+  for (const [index, message] of chart.messages.entries()) {
+    if (message.partition === undefined) continue;
+    const last = runs.at(-1);
+    if (last && last.id === message.partition) {
+      last.lastIndex = index;
+      continue;
+    }
+    const partition = chart.partitions.find((group) => group.id === message.partition)!;
+    runs.push({
+      id: partition.id,
+      firstIndex: index,
+      lastIndex: index,
+      title: wrap(
+        partition.label,
+        width - 48,
+        `diagram.${chart.id}.partitions.${partition.id}.label`,
+        2,
+      ),
+      top: 0,
+      bottom: 0,
+    });
+  }
+  let runIndex = 0;
+
   function activate(call: Message, stack: Execution[], startY: number): Execution {
     const depth = stack.filter((frame) => frame.call.to === call.to).length;
     const activation: Activation = {
@@ -104,7 +113,12 @@ export function layoutSequence(chart: SequenceChart, ctx: LayoutContext): Sequen
 
   const stack: Execution[] = [];
   const prior = new Map<string, Message>();
-  for (const message of chart.messages) {
+  for (const [index, message] of chart.messages.entries()) {
+    const run = runs[runIndex];
+    if (run && run.firstIndex === index) {
+      run.top = y;
+      y += run.title.height + 24;
+    }
     const returning = message.kind === "reply";
     const self = message.from === message.to;
     const direction = centers.get(message.to)! >= centers.get(message.from)! ? 1 : -1;
@@ -114,7 +128,6 @@ export function layoutSequence(chart: SequenceChart, ctx: LayoutContext): Sequen
     // The label background extends another 3 px beyond the measured text.
     const clearance = 20;
     const obstacles: [number, number][] = [
-      ...borders.map((border): [number, number] => [border - 12, border + 12]),
       ...[...centers.values()].map((center): [number, number] => [
         center - clearance,
         center + clearance,
@@ -202,6 +215,10 @@ export function layoutSequence(chart: SequenceChart, ctx: LayoutContext): Sequen
       lineY,
     });
     y = arrivalY + 32;
+    if (run && run.lastIndex === index) {
+      run.bottom = arrivalY + 12;
+      runIndex += 1;
+    }
     prior.set(message.id, message);
   }
   const finalWidth = Math.max(
@@ -211,12 +228,22 @@ export function layoutSequence(chart: SequenceChart, ctx: LayoutContext): Sequen
       ...edge.points.map((point) => point[0] + 24),
     ]),
   );
-  for (const partition of partitions) partition.height = y + 12 - partition.y;
+  const partitions: SequencePartitionLayout[] = chart.partitions.map((partition) => {
+    const run = runs.find((band) => band.id === partition.id)!;
+    return {
+      id: partition.id,
+      x: 12,
+      y: run.top,
+      width: finalWidth - 24,
+      height: run.bottom - run.top,
+      title: run.title,
+    };
+  });
   return finish({
     kind: "sequence",
     id: chart.id,
     width: finalWidth,
-    height: y + (partitions.length ? 36 : 12),
+    height: y + 12,
     nodes,
     partitions,
     edges,

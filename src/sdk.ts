@@ -205,13 +205,8 @@ function normalizeAppearance(
 function participants(nodes: unknown, path: string): SequenceParticipant<Entity, Role>[] {
   return collect(array(nodes, path), (node, i) => {
     const p = `${path}[${i}]`;
-    fields(node, ["entity", "role", "partition"], p);
-    return {
-      ...normalizeAppearance(node, p),
-      ...(node.partition === undefined
-        ? {}
-        : { partition: identifier(node.partition, `${p}.partition`) }),
-    };
+    fields(node, ["entity", "role"], p);
+    return normalizeAppearance(node, p);
   });
 }
 
@@ -334,7 +329,7 @@ function messageVariant(value: unknown, path: string): MessageVariant {
 function messages(values: unknown, path: string): Message[] {
   return collect(array(values, path), (value, i) => {
     const p = `${path}[${i}]`;
-    fields(value, ["id", "from", "to", "label", "replyTo", "kind", "variant"], p);
+    fields(value, ["id", "from", "to", "label", "replyTo", "kind", "variant", "partition"], p);
     const kind = messageKind(value.kind, `${p}.kind`);
     const variant = messageVariant(value.variant, `${p}.variant`);
     if (kind === "reply" && value.replyTo === undefined)
@@ -361,6 +356,9 @@ function messages(values: unknown, path: string): Message[] {
       ...(value.replyTo === undefined
         ? {}
         : { replyTo: identifier(value.replyTo, `${p}.replyTo`) }),
+      ...(value.partition === undefined
+        ? {}
+        : { partition: identifier(value.partition, `${p}.partition`) }),
     };
   });
 }
@@ -464,10 +462,7 @@ export function semanticDiagram(value: Diagram): SemanticDiagram {
     value.kind === "sequence"
       ? {
           ...value,
-          participants: value.participants.map((node) => ({
-            ...appearance(node),
-            ...(node.partition === undefined ? {} : { partition: node.partition }),
-          })),
+          participants: value.participants.map((node) => appearance(node)),
         }
       : value.kind === "swimlane"
         ? {

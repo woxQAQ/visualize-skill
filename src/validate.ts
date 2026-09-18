@@ -103,20 +103,20 @@ export function validate(doc: SemanticDiagram): SemanticDiagram {
   if (chart.kind === "sequence") {
     const partitionIds = new Set(chart.partitions.map((partition) => partition.id));
     for (const partition of chart.partitions) {
-      if (!chart.participants.some((node) => node.partition === partition.id))
+      if (!chart.messages.some((message) => message.partition === partition.id))
         add(
           "EMPTY_PARTITION",
           `${path}.partitions.${partition.id}`,
-          "分区没有包含节点。",
-          "为节点声明 partition，或移除空分区。",
+          "分区没有包含消息。",
+          "为消息声明 partition，或移除空分区。",
         );
     }
-    for (const node of chart.participants) {
-      if (node.partition && !partitionIds.has(node.partition))
+    for (const message of chart.messages) {
+      if (message.partition && !partitionIds.has(message.partition))
         add(
           "UNKNOWN_PARTITION",
-          `${path}.${node.entity}.partition`,
-          `分区 ${node.partition} 不在图中。`,
+          `${path}.${message.id}.partition`,
+          `分区 ${message.partition} 不在图中。`,
           "在 partitions 中声明该逻辑分区。实体不能充当分区。",
         );
     }
@@ -199,15 +199,15 @@ export function validate(doc: SemanticDiagram): SemanticDiagram {
   }
   if (chart.kind === "sequence") {
     for (const partition of chart.partitions) {
-      const indices = chart.participants.flatMap((node, index) =>
-        node.partition === partition.id ? [index] : [],
+      const indices = chart.messages.flatMap((message, index) =>
+        message.partition === partition.id ? [index] : [],
       );
       if (indices.length && indices.at(-1)! - indices[0] + 1 !== indices.length)
         add(
           "NONCONTIGUOUS_PARTITION",
           `${path}.partitions.${partition.id}`,
-          "同一时序分区的参与者必须连续排列。",
-          "调整 participants 的声明顺序，把同一分区的成员放在一起。",
+          "同一时序分区的消息必须连续排列。",
+          "调整 messages 的声明顺序，把同一分区的消息放在一起。",
         );
     }
     validateSequence(chart, path, add, edge);

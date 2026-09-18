@@ -3,15 +3,11 @@ import type { ChartMeta, EntityInput, Role, Appearance } from "../types.ts";
 /**
  * Entity header and lifeline in a sequence diagram; array order determines horizontal placement.
  */
-export interface SequenceParticipant<E = EntityInput, R = Role> extends Appearance<E, R> {
-  /**
-   * Optional ID in this chart's partitions; all participants using the same ID must be contiguous.
-   */
-  readonly partition?: string;
-}
+export type SequenceParticipant<E = EntityInput, R = Role> = Appearance<E, R>;
 
 /**
- * Group of consecutive sequence participants. Geometry is derived from members and message extent.
+ * Group of consecutive sequence messages along the time axis. Geometry is derived from the
+ * vertical extent of member messages.
  */
 export interface SequencePartition {
   /** Unique within the chart's partitions. Use a stable identifier matching [a-z][a-z0-9-]*. */
@@ -65,6 +61,11 @@ export interface MessageInput {
    * innermost first.
    */
   readonly replyTo?: string;
+  /**
+   * Optional ID in this chart's partitions; all messages using the same ID must form one
+   * contiguous run in declaration order.
+   */
+  readonly partition?: string;
 }
 
 /**
@@ -79,13 +80,13 @@ export interface SequenceOptions {
   /** Shared title and optional subtitle; plain text, not markup. */
   readonly meta: ChartMeta;
   /**
-   * Declare 1 to 6 participants in left-to-right order, each entity once; keep partition members
-   * contiguous. Supply full entity and role definitions.
+   * Declare 1 to 6 participants in left-to-right order, each entity once. Supply full entity and
+   * role definitions.
    */
   readonly participants: readonly SequenceParticipant[];
   /**
-   * Groups referenced by participant.partition; every group must contain a contiguous, nonempty
-   * run of participants. Omission normalizes to an empty array.
+   * Groups referenced by message.partition; every group must contain a contiguous, nonempty run
+   * of messages. Omission normalizes to an empty array.
    */
   readonly partitions?: readonly SequencePartition[];
   /**

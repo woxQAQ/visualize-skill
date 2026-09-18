@@ -28,13 +28,7 @@ function entityDetails(semantic: SemanticDiagram) {
               (partition) =>
                 partition.id === chart.nodes.find((node) => node.entity === entity.id)?.partition,
             )
-          : chart.kind === "sequence"
-            ? chart.partitions.find(
-                (partition) =>
-                  partition.id ===
-                  chart.participants.find((node) => node.entity === entity.id)?.partition,
-              )
-            : undefined;
+          : undefined;
       const lane =
         chart.kind === "swimlane"
           ? chart.lanes.find(
