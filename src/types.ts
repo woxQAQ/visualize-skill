@@ -84,6 +84,30 @@ export interface Position {
   readonly y: number;
 }
 
+/** Center axes available for aligning sibling nodes; validated by the SDK. */
+export const alignmentAxes = ["x", "y"] as const;
+
+/** Selects the shared center line: x matches cx, y matches cy. */
+export type AlignmentAxis = (typeof alignmentAxes)[number];
+
+/**
+ * Declarative center alignment with a sibling node in the same container (partition, lane or
+ * chart content area). The layout derives the coordinate on the given axis, so no position
+ * arithmetic is needed. Cannot combine with position, which already fixes both axes.
+ */
+export interface Alignment {
+  /**
+   * Entity ID of the sibling node this node follows; chains are allowed, cycles and
+   * cross-container targets are rejected.
+   */
+  readonly with: string;
+  /**
+   * "x" shares the horizontal center cx for straight vertical relations; "y" shares the vertical
+   * center cy for straight horizontal relations.
+   */
+  readonly axis: AlignmentAxis;
+}
+
 /**
  * One entity appearance in a chart. The optional role controls this appearance's legend category
  * and color.

@@ -12,6 +12,7 @@ import type {
   ChartMeta,
   Entity,
   EntityInput,
+  Alignment,
   Appearance,
   Position,
   Role,
@@ -19,7 +20,7 @@ import type {
   RelationSide,
   Tag,
 } from "./types.ts";
-import { defaultRole } from "./types.ts";
+import { alignmentAxes, defaultRole } from "./types.ts";
 import type {
   SequenceParticipant,
   SequencePartition,
@@ -155,6 +156,42 @@ function position(value: unknown, path: string): Position {
   return { x: value.x as number, y: value.y as number };
 }
 
+function alignment(value: unknown, path: string, self: string): Alignment {
+  fields(value, ["with", "axis"], path);
+  const target = identifier(value.with, `${path}.with`);
+  if (target === self)
+    fail("ALIGNMENT_SELF", `${path}.with`, "节点不能与自身对齐。", "选择同一容器内的另一个节点。");
+  const axis = alignmentAxes.find((axis) => axis === value.axis);
+  if (axis === undefined)
+    fail(
+      "INVALID_ALIGNMENT_AXIS",
+      `${path}.axis`,
+      "对齐轴必须是 x 或 y。",
+      "x 对齐水平中心 cx，用于垂直直连；y 对齐垂直中心 cy，用于水平直连。",
+    );
+  return { with: target, axis };
+}
+
+function placement(
+  node: Record<string, unknown>,
+  path: string,
+  self: string,
+): { position?: Position; align?: Alignment } {
+  if (node.align !== undefined && node.position !== undefined)
+    fail(
+      "ALIGNMENT_POSITION_CONFLICT",
+      `${path}.align`,
+      "position 已固定节点坐标，与 align 冲突。",
+      "保留 position，或改用 align 让布局推导对齐坐标。",
+    );
+  return {
+    ...(node.position === undefined
+      ? {}
+      : { position: position(node.position, `${path}.position`) }),
+    ...(node.align === undefined ? {} : { align: alignment(node.align, `${path}.align`, self) }),
+  };
+}
+
 function normalizeAppearance(
   node: Record<string, unknown>,
   path: string,
@@ -181,15 +218,14 @@ function participants(nodes: unknown, path: string): SequenceParticipant<Entity,
 function architectureNodes(nodes: unknown, path: string): ArchitectureNode<Entity, Role>[] {
   return collect(array(nodes, path), (node, i) => {
     const p = `${path}[${i}]`;
-    fields(node, ["entity", "role", "partition", "position"], p);
+    fields(node, ["entity", "role", "partition", "position", "align"], p);
+    const appearance = normalizeAppearance(node, p);
     return {
-      ...normalizeAppearance(node, p),
+      ...appearance,
       ...(node.partition === undefined
         ? {}
         : { partition: identifier(node.partition, `${p}.partition`) }),
-      ...(node.position === undefined
-        ? {}
-        : { position: position(node.position, `${p}.position`) }),
+      ...placement(node, p, appearance.entity.id),
     };
   });
 }
@@ -383,13 +419,12 @@ export function swimlane(options: SwimlaneOptions): SwimlaneChart<Entity, Role> 
     }),
     nodes: collect(array(options.nodes, "swimlane.nodes"), (node, i) => {
       const p = `swimlane.nodes[${i}]`;
-      fields(node, ["entity", "role", "lane", "position"], p);
+      fields(node, ["entity", "role", "lane", "position", "align"], p);
+      const appearance = normalizeAppearance(node, p);
       return {
-        ...normalizeAppearance(node, p),
+        ...appearance,
         lane: identifier(node.lane, `${p}.lane`),
-        ...(node.position === undefined
-          ? {}
-          : { position: position(node.position, `${p}.position`) }),
+        ...placement(node, p, appearance.entity.id),
       };
     }),
     relations: edges(options.relations, "swimlane.relations"),
@@ -440,6 +475,7 @@ export function semanticDiagram(value: Diagram): SemanticDiagram {
             nodes: value.nodes.map((node) => ({
               ...appearance(node),
               ...(node.position === undefined ? {} : { position: node.position }),
+              ...(node.align === undefined ? {} : { align: node.align }),
               lane: node.lane,
             })),
           }
@@ -449,6 +485,7 @@ export function semanticDiagram(value: Diagram): SemanticDiagram {
               ...appearance(node),
               ...(node.partition === undefined ? {} : { partition: node.partition }),
               ...(node.position === undefined ? {} : { position: node.position }),
+              ...(node.align === undefined ? {} : { align: node.align }),
             })),
           };
   return freeze({

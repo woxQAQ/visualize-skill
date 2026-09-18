@@ -25,7 +25,11 @@ export function layoutSwimlane(chart: SwimlaneChart, ctx: LayoutContext): Swimla
       placeBoxes(
         chart.nodes
           .filter((node) => node.lane === lane.id)
-          .map((node) => ({ ...measured.get(node.entity)!, position: node.position })),
+          .map((node) => ({
+            ...measured.get(node.entity)!,
+            position: node.position,
+            align: node.align,
+          })),
         levels,
         {
           horizontal: true,
@@ -60,6 +64,13 @@ export function layoutSwimlane(chart: SwimlaneChart, ctx: LayoutContext): Swimla
   const nodes = chart.nodes.map((node) => {
     const lane = laneById.get(node.lane)!;
     const box = laneBoxes.get(node.lane)!.get(node.entity)!;
+    if (box.x < 0 || box.y < 0)
+      fail(
+        "ALIGNMENT_RANGE",
+        `${p}.nodes.${node.entity}.align`,
+        `节点 ${node.entity} 对齐后越出泳道内容原点。`,
+        "对齐目标的中心离泳道边缘太近，放不下此节点；改用 position 或调整对齐目标。",
+      );
     const origin: [number, number] = [lane.x + headerWidth + padding, lane.y + padding];
     return {
       ...measured.get(node.entity)!,

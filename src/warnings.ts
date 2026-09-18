@@ -82,7 +82,7 @@ export function computeWarnings(scene: Scene): Diagnostic[] {
         code: "NEAR_MISS_ALIGNMENT",
         path: `${chartPath}.relations.${edge.id}`,
         message: `节点 ${edge.from} 与 ${edge.to} 的水平中心相差 ${dcy} 像素，连线被迫折弯。`,
-        hint: `若两者应水平直连，调整 position 使 cy 相等（${centerY(a)} 与 ${centerY(b)}）；局部修正量 = 期望绝对坐标 - origin。`,
+        hint: `若两者应水平直连，为 ${edge.to} 声明 align: { with: "${edge.from}", axis: "y" } 对齐 cy（须在同一容器）；跨容器时调整 position 使 cy 相等（${centerY(a)} 与 ${centerY(b)}），局部修正量 = 期望绝对坐标 - origin。`,
       });
     }
     if (!horizontal && dcx > 0 && dcx <= NEAR_MISS_LIMIT) {
@@ -90,7 +90,7 @@ export function computeWarnings(scene: Scene): Diagnostic[] {
         code: "NEAR_MISS_ALIGNMENT",
         path: `${chartPath}.relations.${edge.id}`,
         message: `节点 ${edge.from} 与 ${edge.to} 的垂直中心相差 ${dcx} 像素，连线被迫折弯。`,
-        hint: `若两者应垂直直连，调整 position 使 cx 相等（${centerX(a)} 与 ${centerX(b)}）；局部修正量 = 期望绝对坐标 - origin。`,
+        hint: `若两者应垂直直连，为 ${edge.to} 声明 align: { with: "${edge.from}", axis: "x" } 对齐 cx（须在同一容器）；跨容器时调整 position 使 cx 相等（${centerX(a)} 与 ${centerX(b)}），局部修正量 = 期望绝对坐标 - origin。`,
       });
     }
     const aligned = dcx === 0 || dcy === 0;

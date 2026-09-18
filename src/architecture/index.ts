@@ -3,6 +3,7 @@ import type {
   EntityInput,
   Role,
   Position,
+  Alignment,
   Appearance,
   RelationInput,
 } from "../types.ts";
@@ -23,6 +24,11 @@ export interface ArchitectureNode<E = EntityInput, R = Role> extends Appearance<
    * content origin when ungrouped. Omit for automatic placement.
    */
   readonly position?: Position;
+  /**
+   * Center alignment with a sibling node in the same partition or chart content area; the layout
+   * derives the coordinate on the given axis. Cannot combine with position.
+   */
+  readonly align?: Alignment;
 }
 
 /**
@@ -73,7 +79,8 @@ export interface ArchitectureOptions {
   readonly direction?: ArchitectureDirection;
   /**
    * Declare 1 to 12 nodes, with each entity appearing exactly once; supply full entity and role
-   * definitions. Optional positions express intended placement or refine automatic layout.
+   * definitions. Optional positions and center alignments express intended placement or refine
+   * automatic layout.
    * Assign partition IDs to group nodes; chart.nodes order determines member layout order.
    */
   readonly nodes: readonly ArchitectureNode[];

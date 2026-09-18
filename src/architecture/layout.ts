@@ -24,7 +24,11 @@ export function layoutArchitecture(
   const partitions: ArchitecturePartitionLayout[] = chart.partitions.map((partition) => {
     const members = chart.nodes.filter((node) => membership.get(node.entity) === partition.id);
     const boxes = placeBoxes(
-      members.map((node) => ({ ...measured.get(node.entity)!, position: node.position })),
+      members.map((node) => ({
+        ...measured.get(node.entity)!,
+        position: node.position,
+        align: node.align,
+      })),
       dependencyLevels(
         members.map((node) => node.entity),
         chart.relations,
@@ -73,6 +77,10 @@ export function layoutArchitecture(
         ...measured.get(node.entity)!,
         id: `node:${node.entity}`,
         position: node.position,
+        align:
+          node.align === undefined
+            ? undefined
+            : { with: `node:${node.align.with}`, axis: node.align.axis },
       })),
   ];
   const rootLinks = chart.relations.map((edge) => ({
@@ -97,6 +105,13 @@ export function layoutArchitecture(
     const partitionId = membership.get(node.entity);
     const partition = partitionId === undefined ? undefined : partitionById.get(partitionId)!;
     const box = partition ? local.get(node.entity)! : placement.get(`node:${node.entity}`)!;
+    if (box.x < 0 || box.y < 0)
+      fail(
+        "ALIGNMENT_RANGE",
+        `diagram.${chart.id}.nodes.${node.entity}.align`,
+        `节点 ${node.entity} 对齐后越出容器内容原点。`,
+        "对齐目标的中心离容器边缘太近，放不下此节点；改用 position 或调整对齐目标。",
+      );
     const origin: [number, number] = partition
       ? [partition.x + padding, partition.y + partition.headerHeight + padding]
       : [margin, margin];
@@ -107,18 +122,6 @@ export function layoutArchitecture(
       y: origin[1] + box.y,
     };
   });
-  const regions = [...placement.entries()];
-  for (let i = 0; i < regions.length; i++) {
-    for (let j = i + 1; j < regions.length; j++) {
-      if (overlaps(regions[i][1], regions[j][1], 12))
-        fail(
-          "REGION_OVERLAP",
-          `diagram.${chart.id}`,
-          `区域 ${regions[i][0]} 与 ${regions[j][0]} 重叠或间距不足。`,
-          "调整对应节点或分区的 position；尺寸由内容自动计算，至少保留 12 像素间距。",
-        );
-    }
-  }
   for (let i = 0; i < nodes.length; i++) {
     for (let j = i + 1; j < nodes.length; j++) {
       if (
@@ -130,6 +133,18 @@ export function layoutArchitecture(
           `diagram.${chart.id}.nodes.${nodes[j].id}.position`,
           `节点 ${nodes[i].id} 与 ${nodes[j].id} 重叠或间距不足。`,
           "调整 position，或省略该字段恢复自动布局；至少保留 12 像素间距。",
+        );
+    }
+  }
+  const regions = [...placement.entries()];
+  for (let i = 0; i < regions.length; i++) {
+    for (let j = i + 1; j < regions.length; j++) {
+      if (overlaps(regions[i][1], regions[j][1], 12))
+        fail(
+          "REGION_OVERLAP",
+          `diagram.${chart.id}`,
+          `区域 ${regions[i][0]} 与 ${regions[j][0]} 重叠或间距不足。`,
+          "调整对应节点或分区的 position；尺寸由内容自动计算，至少保留 12 像素间距。",
         );
     }
   }

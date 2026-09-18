@@ -1,4 +1,4 @@
-import type { Position } from "../types.ts";
+import type { Alignment, Position } from "../types.ts";
 import type { Rect } from "./model.ts";
 import { overlaps } from "./routing.ts";
 
@@ -47,6 +47,7 @@ interface PlacementBox {
   width: number;
   height: number;
   position?: Position;
+  align?: Alignment;
 }
 
 /** Center measured boxes in dependency rows and columns; explicit coordinates remain fixed. */
@@ -152,5 +153,29 @@ export function placeBoxes(
     for (const { id, ...rect } of rects) placed.set(id, rect);
     nextY = top + shift + height + gap;
   }
+  // Center alignments resolve after automatic placement: each aligned box moves on
+  // one axis to match its target's final center. Chains settle in reference order;
+  // validation guarantees targets join the same call and never form cycles.
+  const alignments = new Map(
+    boxes.flatMap((box) => (box.align ? [[box.id, box.align] as const] : [])),
+  );
+  const settled = new Set<string>();
+  const settling = new Set<string>();
+  const settle = (id: string) => {
+    if (settled.has(id) || settling.has(id)) return;
+    const align = alignments.get(id);
+    if (!align) return;
+    settling.add(id);
+    settle(align.with);
+    settling.delete(id);
+    const rect = placed.get(id)!;
+    const target = placed.get(align.with);
+    if (target) {
+      if (align.axis === "x") rect.x = target.x + target.width / 2 - rect.width / 2;
+      else rect.y = target.y + target.height / 2 - rect.height / 2;
+    }
+    settled.add(id);
+  };
+  for (const id of alignments.keys()) settle(id);
   return placed;
 }

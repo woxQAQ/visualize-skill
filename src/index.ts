@@ -10,6 +10,8 @@ export { defaultRole } from "./types.ts";
 
 export type {
   ChartMeta,
+  Alignment,
+  AlignmentAxis,
   Appearance,
   Entity,
   EntityInput,

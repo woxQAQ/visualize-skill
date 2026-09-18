@@ -121,6 +121,53 @@ export function validate(doc: SemanticDiagram): SemanticDiagram {
         );
     }
   }
+  if (chart.kind !== "sequence") {
+    // Alignment targets must be placed by the same placement run, so both ends
+    // share one partition, lane or the root content area.
+    const byId = new Map(chart.nodes.map((node) => [node.entity, node]));
+    const containerOf = new Map(
+      chart.kind === "architecture"
+        ? chart.nodes.map((node) => [node.entity, node.partition ?? ""] as const)
+        : chart.nodes.map((node) => [node.entity, node.lane] as const),
+    );
+    for (const node of chart.nodes) {
+      if (node.align === undefined) continue;
+      const target = byId.get(node.align.with);
+      if (target === undefined) {
+        add(
+          "UNKNOWN_ALIGNMENT",
+          `${path}.${node.entity}.align.with`,
+          `对齐目标 ${node.align.with} 未出现在当前图表中。`,
+          "选择同一容器内的节点标识。",
+        );
+      } else if (containerOf.get(node.entity) !== containerOf.get(target.entity)) {
+        add(
+          "ALIGNMENT_CONTAINER",
+          `${path}.${node.entity}.align.with`,
+          `节点 ${node.entity} 与对齐目标 ${target.entity} 不在同一容器。`,
+          "架构图要求双方在同一分区或同在未分组区域，泳道图要求在同一泳道；跨容器对齐改用 position。",
+        );
+      }
+    }
+    for (const node of chart.nodes) {
+      if (node.align === undefined) continue;
+      const seen = new Set([node.entity]);
+      let target = byId.get(node.align.with);
+      while (target?.align) {
+        if (seen.has(target.entity)) {
+          add(
+            "ALIGNMENT_CYCLE",
+            `${path}.${target.entity}.align.with`,
+            "对齐声明形成循环。",
+            "让对齐链条的末端指向一个没有 align 的节点。",
+          );
+          break;
+        }
+        seen.add(target.entity);
+        target = byId.get(target.align.with);
+      }
+    }
+  }
   if (chart.kind === "swimlane") {
     const laneIds = new Set<string>();
     for (const lane of chart.lanes) {

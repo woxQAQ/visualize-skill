@@ -3,6 +3,7 @@ import type {
   EntityInput,
   Role,
   Position,
+  Alignment,
   Appearance,
   RelationInput,
 } from "../types.ts";
@@ -35,6 +36,11 @@ export interface SwimlaneNode<E = EntityInput, R = Role> extends Appearance<E, R
    * padding. Omit for automatic placement.
    */
   readonly position?: Position;
+  /**
+   * Center alignment with a sibling node in the same lane; the layout derives the coordinate on
+   * the given axis. Cannot combine with position.
+   */
+  readonly align?: Alignment;
 }
 
 /**
@@ -51,8 +57,9 @@ export interface SwimlaneOptions {
   /** Nonempty list in top-to-bottom order; each lane must contain at least one activity node. */
   readonly lanes: readonly Lane[];
   /**
-   * Declare 1 to 12 nodes, with each entity appearing exactly once; supply full entity and role definitions
-   * and a lane ID. Optional positions express intended placement or refine automatic layout.
+   * Declare 1 to 12 nodes, with each entity appearing exactly once; supply full entity and role
+   * definitions and a lane ID. Optional positions and center alignments express intended placement
+   * or refine automatic layout.
    */
   readonly nodes: readonly SwimlaneNode[];
   /**

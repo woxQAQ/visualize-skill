@@ -12,7 +12,8 @@
     "typecheck": "tsc --noEmit",
     "example": "node examples/architecture.ts",
     "example:swimlane": "node examples/swimlane.ts",
-    "example:sequence": "node examples/sequence.ts"
+    "example:sequence": "node examples/sequence.ts",
+    "examples": "for f in examples/*.ts; do node \"$f\"; done"
   },
   "devDependencies": {
     "@types/node": "^22.20.1",

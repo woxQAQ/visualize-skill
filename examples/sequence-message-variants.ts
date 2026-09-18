@@ -7,7 +7,7 @@ const service = entity({ id: "service", label: "服务" });
 const audit = entity({ id: "audit", label: "审计服务" });
 
 const messages = sequence({
-  id: "message-variants",
+  id: "sequence-message-variants",
   meta: { title: "消息行为与视觉强调独立组合" },
   participants: [client, service, audit].map((entity) => ({
     entity,
@@ -72,4 +72,4 @@ const messages = sequence({
 
 const html = render(messages);
 await mkdir("output", { recursive: true });
-await writeFile("output/message-variants.html", html, "utf8");
+await writeFile("output/sequence-message-variants.html", html, "utf8");

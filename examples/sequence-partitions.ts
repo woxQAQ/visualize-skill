@@ -3,7 +3,7 @@ import { sequence, render } from "../src/index.ts";
 import { generation } from "./system.ts";
 
 const partitions = sequence({
-  id: "generation-partitions",
+  id: "sequence-partitions",
   meta: { title: "生成时序：按职责划分参与者" },
   participants: generation.participants.map((participant, index) => ({
     ...participant,
