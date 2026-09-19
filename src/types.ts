@@ -118,8 +118,12 @@ export interface Appearance<E = EntityInput, R = Role> {
    */
   readonly entity: E;
   /**
-   * Role definition controlling this appearance's legend category and color. Omit for the neutral
-   * default role, which appears neither in the legend nor in the palette.
+   * Responsibility category controlling this appearance's legend entry and SDK-assigned color.
+   * Declare a role whenever responsibility differences help explain the chart, such as business
+   * logic, runtime or transport. Reuse the same role for the same responsibility and give it a
+   * meaningful label; do not create a separate role for each node merely to obtain more colors.
+   * Omit only when this appearance needs no classification: the neutral default appears neither
+   * in the legend nor in the palette. Optionality is not a reason to omit roles throughout a chart.
    */
   readonly role?: R;
 }
